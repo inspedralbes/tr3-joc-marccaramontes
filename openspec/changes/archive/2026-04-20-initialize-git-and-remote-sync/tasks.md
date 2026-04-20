@@ -13,7 +13,7 @@
 
 ## 3. Primer Commit y Sincronización
 
-- [ ] 3.1 Añadir todos los archivos locales al staging: `git add .`.
-- [ ] 3.2 Crear el primer commit: `git commit -m "chore: initial commit with Unity project and server"`.
-- [ ] 3.3 Subir el repositorio local al remoto: `git push -u origin main`.
-- [ ] 3.4 Verificar en GitHub que el código y la estructura de carpetas (`Assets/`, `Server/`, `doc/`) son correctos.
+- [x] 3.1 Añadir todos los archivos locales al staging: `git add .`.
+- [x] 3.2 Crear el primer commit: `git commit -m "chore: initial commit with Unity project and server"`.
+- [x] 3.3 Subir el repositorio local al remoto: `git push -u origin main`.
+- [x] 3.4 Verificar en GitHub que el código y la estructura de carpetas (`Assets/`, `Server/`, `doc/`) son correctos.
