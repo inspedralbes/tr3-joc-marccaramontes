@@ -1,0 +1,29 @@
+schema: spec-driven
+
+# Contexto del Proyecto de Unity
+context: |
+  Este es un juego 2D desarrollado en Unity.
+
+  Stack Tecnológico:
+  - Motor: Unity 2022.3 LTS (o la versión que uses).
+  - Lenguaje: C# siguiendo convenciones de Microsoft/Unity (PascalCase).
+  - Renderizado: Universal Render Pipeline (URP) con 2D Renderer. 
+  - Gestión de Estado: ScriptableObjects para datos y eventos.    
+  - UI: Unity UI (UGUI) o UI Toolkit.
+  - Físicas: BoxCollider2D, Rigidbody2D.
+
+  Arquitectura:
+  - Basada en componentes (MonoBehaviours) desacoplados.
+  - Uso de Singletons solo para managers globales (GameManager, SoundManager).
+  - Los datos persistentes se guardan en JSON o PlayerPrefs.      
+
+# Reglas para la IA al crear documentos
+rules:
+  proposal:
+    - Definir claramente el impacto en el gameplay y la experiencia del jugador.
+    - Listar los Assets necesarios (Sprites, Audio, Animaciones). 
+  design:
+    - Incluir diagramas de Máquinas de Estado para personajes o flujos de UI.
+    - Explicar la jerarquía de Prefabs necesaria.
+  tasks:
+    - Dividir las tareas en: Scripts (C#), Configuración de Escena/Prefabs, Animaciones y Pruebas.

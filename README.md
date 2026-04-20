@@ -1,16 +1,26 @@
-# transversals
-Esquema mínim de carpetes pels projectes transversals
+# AEA-Unity Project
 
-És obligatori seguir aquesta estructura tot i que la podeu ampliar.
+Este es el proyecto transversal para la asignatura 2DAM 25-26.
 
-## Atenció
-Un cop comenceu heu de canviar aquesta explicació amb la corresponent al vostre projecte (utilitzant markdown)
+## Integrantes
+- Marc Caramontes
 
-# Aquest fitxer ha de contenir com a mínim:
- * Nom dels integrants
- * Nom del projecte
- * Petita descripció
- * Adreça del gestor de tasques (taiga, jira, trello...)
- * Adreça del prototip gràfic del projecte (Penpot, figma, moqups...)
- * URL de producció (quan la tingueu)
- * Estat: (explicació d'en quin punt està)
+## Descripción
+Un videojuego 2D desarrollado en Unity 2022.3 LTS con un backend en Node.js (Socket.IO) para funcionalidades multijugador.
+
+## Gestor de Tareas
+- [Taiga/Jira/Trello URL Placeholder]
+
+## Prototipo Gráfico
+- [Figma/Penpot URL Placeholder]
+
+## URL de Producción
+- [Production URL Placeholder]
+
+## Estado
+- **En desarrollo**: Motor de juego base implementado, sistema de disparo, enemigos y servidor básico funcional. Actualmente configurando el repositorio Git y la sincronización remota.
+
+---
+
+### Estructura Obligatoria
+Este repositorio sigue la estructura mínima requerida para los proyectos transversales.
