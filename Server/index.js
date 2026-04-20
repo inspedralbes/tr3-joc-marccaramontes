@@ -3,6 +3,26 @@ const http = require('http');
 const { Server } = require('socket.io');
 
 const app = express();
+
+// Rutas básicas para evitar 404 y el CSP restrictivo por defecto de Express 5
+app.get('/', (req, res) => {
+    res.send(`
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+            <meta charset="UTF-8">
+            <title>Servidor de Juego</title>
+        </head>
+        <body>
+            <h1>Servidor de juego Socket.io activo</h1>
+            <p>Estado: Corriendo correctamente</p>
+        </body>
+        </html>
+    `);
+});
+
+app.get('/favicon.ico', (req, res) => res.status(204).end());
+
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
