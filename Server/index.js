@@ -3,6 +3,11 @@ const http = require('http');
 const { Server } = require('socket.io');
 
 const app = express();
+const cors = require('cors');
+
+// Middleware
+app.use(cors());
+app.use(express.json());
 
 // Rutas básicas para evitar 404 y el CSP restrictivo por defecto de Express 5
 app.get('/', (req, res) => {
@@ -16,12 +21,53 @@ app.get('/', (req, res) => {
         <body>
             <h1>Servidor de juego Socket.io activo</h1>
             <p>Estado: Corriendo correctamente</p>
+            <p>Endpoints REST disponibles para el prototipo.</p>
         </body>
         </html>
     `);
 });
 
 app.get('/favicon.ico', (req, res) => res.status(204).end());
+
+// --- Endpoints REST (UnityWebRequest) ---
+
+// Almacenamiento volátil de salas
+// rooms[roomId] = { hostId, players: [ {id, playerName, socketId, isHost} ] }
+const rooms = {};
+
+app.post('/api/rooms/create', (req, res) => {
+    const { playerName } = req.body;
+    if (!playerName) return res.status(400).json({ error: 'Nombre de jugador requerido' });
+
+    const roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+    rooms[roomId] = {
+        hostId: null, // Se asignará cuando el socket se conecte
+        players: [{ playerName, socketId: null, isHost: true }]
+    };
+
+    console.log(`Sala creada vía REST: ${roomId} por ${playerName}`);
+    res.json({ roomId });
+});
+
+app.post('/api/rooms/join', (req, res) => {
+    const { roomId, playerName } = req.body;
+    if (!roomId || !playerName) return res.status(400).json({ error: 'Faltan parámetros' });
+
+    const room = rooms[roomId];
+    if (!room) return res.status(404).json({ error: 'La sala no existe' });
+    if (room.players.length >= 2) return res.status(400).json({ error: 'La sala está llena' });
+
+    room.players.push({ playerName, socketId: null, isHost: false });
+    console.log(`Jugador ${playerName} pre-registrado vía REST en sala ${roomId}`);
+    res.json({ success: true, roomId });
+});
+
+app.post('/api/results', (req, res) => {
+    const { roomId, playerName, survivalTime } = req.body;
+    console.log(`[RESULTADOS] Sala: ${roomId}, Jugador: ${playerName}, Tiempo: ${survivalTime}s`);
+    // En un proyecto real, aquí guardaríamos en una base de datos.
+    res.json({ success: true });
+});
 
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -33,38 +79,35 @@ const io = new Server(server, {
 
 const PORT = process.env.PORT || 3000;
 
-// Almacenamiento volátil de salas
-// rooms[roomId] = { hostId, players: [ {id, socketId} ] }
-const rooms = {};
-
 io.on('connection', (socket) => {
-    console.log(`Usuario conectado: ${socket.id}`);
+    console.log(`Socket conectado: ${socket.id}`);
 
-    // --- Gestión de Salas ---
+    // --- Vinculación de Socket con Sala (tras el registro REST) ---
 
-    socket.on('create_room', () => {
-        const roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
-        rooms[roomId] = {
-            hostId: socket.id,
-            players: [{ id: socket.id, isHost: true }]
-        };
-        socket.join(roomId);
-        socket.emit('room_created', { roomId, isHost: true });
-        console.log(`Sala creada: ${roomId} por ${socket.id}`);
-    });
+    socket.on('join_room_socket', (data) => {
+        const { roomId, playerName } = data;
+        const room = rooms[roomId];
 
-    socket.on('join_room', (roomId) => {
-        if (rooms[roomId]) {
-            if (rooms[roomId].players.length < 2) {
-                rooms[roomId].players.push({ id: socket.id, isHost: false });
+        if (room) {
+            const player = room.players.find(p => p.playerName === playerName);
+            if (player) {
+                player.socketId = socket.id;
                 socket.join(roomId);
-                socket.emit('room_joined', { roomId, isHost: false });
                 
-                // Notificar a todos en la sala que la partida puede empezar
-                io.to(roomId).emit('player_joined', { playerId: socket.id, totalPlayers: rooms[roomId].players.length });
-                console.log(`Usuario ${socket.id} se unió a la sala ${roomId}`);
+                if (player.isHost) room.hostId = socket.id;
+
+                socket.emit('room_joined_confirmed', { roomId, isHost: player.isHost });
+                
+                // Notificar a todos en la sala
+                io.to(roomId).emit('player_joined', { 
+                    playerId: socket.id, 
+                    playerName: player.playerName,
+                    totalPlayers: room.players.length 
+                });
+                
+                console.log(`Socket ${socket.id} vinculado a ${playerName} en sala ${roomId}`);
             } else {
-                socket.emit('error_message', 'La sala está llena');
+                socket.emit('error_message', 'Jugador no registrado en esta sala');
             }
         } else {
             socket.emit('error_message', 'La sala no existe');
@@ -107,6 +150,8 @@ io.on('connection', (socket) => {
 
     socket.on('player_death', (data) => {
         // data: { roomId, survivalTime }
+        // Se mantiene el evento para notificar el fin inmediato, 
+        // pero el resultado oficial se enviará por REST.
         io.to(data.roomId).emit('game_over', {
             playerId: socket.id,
             survivalTime: data.survivalTime
@@ -114,13 +159,14 @@ io.on('connection', (socket) => {
     });
 
     socket.on('disconnect', () => {
-        console.log(`Usuario desconectado: ${socket.id}`);
-        // Limpieza básica de salas (opcional para prototipo)
+        console.log(`Socket desconectado: ${socket.id}`);
         for (const roomId in rooms) {
-            const index = rooms[roomId].players.findIndex(p => p.id === socket.id);
-            if (index !== -1) {
-                rooms[roomId].players.splice(index, 1);
-                io.to(roomId).emit('player_left', { playerId: socket.id });
+            const playerIndex = rooms[roomId].players.findIndex(p => p.socketId === socket.id);
+            if (playerIndex !== -1) {
+                const playerName = rooms[roomId].players[playerIndex].playerName;
+                rooms[roomId].players.splice(playerIndex, 1);
+                io.to(roomId).emit('player_left', { playerId: socket.id, playerName });
+                
                 if (rooms[roomId].players.length === 0) {
                     delete rooms[roomId];
                 }

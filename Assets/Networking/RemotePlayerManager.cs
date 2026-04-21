@@ -25,7 +25,7 @@ public class RemotePlayerManager : MonoBehaviour
         }
     }
 
-    private void SpawnRemotePlayer(string playerId)
+    private void SpawnRemotePlayer(string playerId, string playerName)
     {
         if (remotePlayers.ContainsKey(playerId)) return;
 
@@ -38,7 +38,7 @@ public class RemotePlayerManager : MonoBehaviour
             targetPosition = Vector3.zero, 
             targetRotation = Quaternion.identity 
         });
-        Debug.Log($"[RemotePlayerManager] Spawned ghost for {playerId}");
+        Debug.Log($"[RemotePlayerManager] Spawned ghost for {playerName} ({playerId})");
     }
 
     private void UpdateRemotePlayer(string playerId, Vector3 position, float rotation)
@@ -50,7 +50,7 @@ public class RemotePlayerManager : MonoBehaviour
         }
         else
         {
-            SpawnRemotePlayer(playerId);
+            SpawnRemotePlayer(playerId, "Unknown Player");
         }
     }
 

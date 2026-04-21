@@ -172,6 +172,10 @@ public class GameManager : MonoBehaviour
         
         if (currentMode == GameMode.Online)
         {
+            // Requisito: Enviar resultados vía HTTP (UnityWebRequest)
+            NetworkManager.Instance.ReportResults(survivalTime);
+            
+            // Sincronizar fin de partida vía Socket para otros jugadores
             NetworkManager.Instance.Emit("player_death", new DeathData { roomId = NetworkManager.Instance.currentRoomId, survivalTime = survivalTime });
         }
         else 

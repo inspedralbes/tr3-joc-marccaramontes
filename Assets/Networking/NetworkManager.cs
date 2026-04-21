@@ -1,5 +1,8 @@
 using System;
+using System.Collections;
+using System.Text;
 using UnityEngine;
+using UnityEngine.Networking;
 using Networking;
 
 public class NetworkManager : MonoBehaviour
@@ -7,12 +10,14 @@ public class NetworkManager : MonoBehaviour
     public static NetworkManager Instance { get; private set; }
 
     [Header("Configuración")]
-    public string serverUrl = "ws://localhost:3000/socket.io/?EIO=4&transport=websocket";
+    public string serverWsUrl = "ws://localhost:3000/socket.io/?EIO=4&transport=websocket";
+    public string serverHttpUrl = "http://localhost:3000/api";
     
     [Header("Estado")]
     public string currentRoomId;
     public bool isHost;
     public string localPlayerId;
+    public string localPlayerName;
 
     private SocketIOClient client;
 
@@ -35,28 +40,76 @@ public class NetworkManager : MonoBehaviour
         client.OnConnected += HandleConnected;
         client.OnDisconnected += HandleDisconnected;
         client.OnEventReceived += HandleEvent;
-        
-        // Auto-conectar para pruebas si es necesario, 
-        // pero normalmente se haría desde el Lobby
-        // Connect();
     }
 
-    public void Connect()
+    // --- Comunicación HTTP (UnityWebRequest) ---
+
+    public void PostRequest<T>(string endpoint, object data, Action<T> onSuccess, Action<string> onError)
     {
-        if (!client.IsConnected)
+        StartCoroutine(PostRequestRoutine(endpoint, data, onSuccess, onError));
+    }
+
+    private IEnumerator PostRequestRoutine<T>(string endpoint, object data, Action<T> onSuccess, Action<string> onError)
+    {
+        string json = JsonUtility.ToJson(data);
+        string url = $"{serverHttpUrl}{endpoint}";
+        
+        using (UnityWebRequest request = new UnityWebRequest(url, "POST"))
         {
-            client.Connect(serverUrl);
+            byte[] bodyRaw = Encoding.UTF8.GetBytes(json);
+            request.uploadHandler = new UploadHandlerRaw(bodyRaw);
+            request.downloadHandler = new DownloadHandlerBuffer();
+            request.SetRequestHeader("Content-Type", "application/json");
+
+            yield return request.SendWebRequest();
+
+            if (request.result != UnityWebRequest.Result.Success)
+            {
+                Debug.LogError($"[NetworkManager] Error en POST {endpoint}: {request.error}");
+                onError?.Invoke(request.error);
+            }
+            else
+            {
+                Debug.Log($"[NetworkManager] POST {endpoint} exitoso: {request.downloadHandler.text}");
+                try {
+                    T response = JsonUtility.FromJson<T>(request.downloadHandler.text);
+                    onSuccess?.Invoke(response);
+                } catch (Exception e) {
+                    Debug.LogError($"[NetworkManager] Error parseando respuesta: {e.Message}");
+                    onError?.Invoke("Error de parseo de datos");
+                }
+            }
         }
     }
 
-    public void CreateRoom()
+    // --- Flujo de Conexión ---
+
+    public void ConnectToSocket(string roomId)
     {
-        client.Emit("create_room", new {});
+        currentRoomId = roomId;
+        if (!client.IsConnected)
+        {
+            client.Connect(serverWsUrl);
+        }
+        else
+        {
+            // Si ya está conectado (ej. re-unión), emitimos directamente
+            EmitJoinSocket();
+        }
     }
 
-    public void JoinRoom(string roomId)
+    private void HandleConnected()
     {
-        client.Emit("join_room", roomId);
+        Debug.Log("[NetworkManager] Conexión Socket establecida. Vinculando con sala...");
+        EmitJoinSocket();
+    }
+
+    private void EmitJoinSocket()
+    {
+        client.Emit("join_room_socket", new JoinSocketData { 
+            roomId = currentRoomId, 
+            playerName = localPlayerName 
+        });
     }
 
     public void Emit(string eventName, object data)
@@ -64,9 +117,18 @@ public class NetworkManager : MonoBehaviour
         client.Emit(eventName, data);
     }
 
-    private void HandleConnected()
+    public void ReportResults(float survivalTime)
     {
-        Debug.Log("[NetworkManager] Conexión establecida con éxito.");
+        var request = new ResultRequest {
+            roomId = currentRoomId,
+            playerName = localPlayerName,
+            survivalTime = survivalTime
+        };
+
+        PostRequest<RoomResponse>("/results", request, 
+            (response) => Debug.Log("Resultados enviados con éxito via HTTP"),
+            (error) => Debug.LogError("Error enviando resultados: " + error)
+        );
     }
 
     private void HandleDisconnected()
@@ -74,9 +136,10 @@ public class NetworkManager : MonoBehaviour
         Debug.LogWarning("[NetworkManager] Conexión perdida.");
     }
 
-    public event Action<string, Vector3, float> OnRemotePlayerMoved;
-    public event Action<string> OnRemotePlayerJoined;
+    // --- Eventos de Juego ---
 
+    public event Action<string, Vector3, float> OnRemotePlayerMoved;
+    public event Action<string, string> OnRemotePlayerJoined;
     public event Action<string, Vector3, float> OnRemotePlayerShot;
     public event Action OnMatchStarted;
     public event Action<string, float> OnGameOver;
@@ -88,19 +151,13 @@ public class NetworkManager : MonoBehaviour
         
         switch (eventName)
         {
-            case "room_created":
-                var createdData = JsonUtility.FromJson<RoomData>(data);
-                currentRoomId = createdData.roomId;
-                isHost = createdData.isHost;
-                break;
-            case "room_joined":
-                var joinedData = JsonUtility.FromJson<RoomData>(data);
-                currentRoomId = joinedData.roomId;
-                isHost = joinedData.isHost;
+            case "room_joined_confirmed":
+                var confirmedData = JsonUtility.FromJson<RoomConfirmedData>(data);
+                isHost = confirmedData.isHost;
                 break;
             case "player_joined":
                 var joinData = JsonUtility.FromJson<JoinData>(data);
-                OnRemotePlayerJoined?.Invoke(joinData.playerId);
+                OnRemotePlayerJoined?.Invoke(joinData.playerId, joinData.playerName);
                 break;
             case "player_moved":
                 var moveData = JsonUtility.FromJson<MoveData>(data);
@@ -122,6 +179,34 @@ public class NetworkManager : MonoBehaviour
                 OnGameOver?.Invoke(gameOverData.playerId, gameOverData.survivalTime);
                 break;
         }
+    }
+
+    // --- DTOs ---
+
+    [Serializable] public class RoomRequest { public string playerName; }
+    [Serializable] public class JoinRequest { public string roomId; public string playerName; }
+    [Serializable] public class RoomResponse { public string roomId; public bool success; }
+    [Serializable] public class ResultRequest { public string roomId; public string playerName; public float survivalTime; }
+
+    [Serializable]
+    public class JoinSocketData
+    {
+        public string roomId;
+        public string playerName;
+    }
+
+    [Serializable]
+    public class RoomConfirmedData
+    {
+        public string roomId;
+        public bool isHost;
+    }
+
+    [Serializable]
+    public class JoinData
+    {
+        public string playerId;
+        public string playerName;
     }
 
     [Serializable]
@@ -146,19 +231,6 @@ public class NetworkManager : MonoBehaviour
         public string enemyId;
         public float x;
         public float y;
-    }
-
-    [Serializable]
-    public class RoomData
-    {
-        public string roomId;
-        public bool isHost;
-    }
-
-    [Serializable]
-    public class JoinData
-    {
-        public string playerId;
     }
 
     [Serializable]
