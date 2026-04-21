@@ -21,8 +21,12 @@ public class EnemySpawner : MonoBehaviour
 
         if (spawnCenter == null)
         {
-            GameObject platform = GameObject.FindGameObjectWithTag("Platform");
-            if (platform != null) spawnCenter = platform.transform;
+            try {
+                GameObject platform = GameObject.FindGameObjectWithTag("Platform");
+                if (platform != null) spawnCenter = platform.transform;
+            } catch {
+                Debug.LogWarning("<b>[EnemySpawner]</b> Tag 'Platform' no definido. Usando posición propia.");
+            }
         }
 
         // Si somos el cliente, nos suscribimos a los eventos del Host

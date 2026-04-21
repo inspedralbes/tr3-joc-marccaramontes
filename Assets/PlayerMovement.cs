@@ -32,10 +32,7 @@ public class PlayerMovement : MonoBehaviour
             moveAction = playerInput.actions["Move"];
             if (moveAction == null) Debug.LogWarning("<color=red><b>[PlayerMovement]</b> Acción 'Move' no encontrada en PlayerInput. Revisa el archivo de acciones.</color>");
         }
-        else
-        {
-            Debug.LogWarning("<b>[PlayerMovement]</b> Componente PlayerInput no encontrado. Usando Input antiguo (Fallback).");
-        }
+        // Eliminado aviso de fallback para limpiar consola
 
         // Auto-asignación de autoridad local si no hay red activa
         bool isNetworkActive = NetworkManager.Instance != null && !string.IsNullOrEmpty(NetworkManager.Instance.currentRoomId);
@@ -77,6 +74,13 @@ public class PlayerMovement : MonoBehaviour
     void Update()
     {
         if (!networkIdentity.isLocalPlayer) return;
+
+        // BLOQUEO: No mover si la partida ha terminado o está en transición
+        if (GameManager.Instance != null && (GameManager.Instance.IsGameOver || GameManager.Instance.currentState == GameState.DeathTransition))
+        {
+            movement = Vector2.zero;
+            return;
+        }
 
         if (moveAction != null)
         {

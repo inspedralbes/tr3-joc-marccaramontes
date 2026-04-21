@@ -22,6 +22,7 @@ public class Bullet : MonoBehaviour
         if (collision.CompareTag("Enemy"))
         {
             Debug.Log("Impacto en enemigo: " + collision.gameObject.name);
+            if (GameManager.Instance != null) GameManager.Instance.AddKill();
             Destroy(collision.gameObject);
             Destroy(gameObject); // Destruye la bala al impactar
         }

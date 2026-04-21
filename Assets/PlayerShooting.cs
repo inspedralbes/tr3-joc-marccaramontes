@@ -37,6 +37,9 @@ public class PlayerShooting : MonoBehaviour
     {
         if (!networkIdentity.isLocalPlayer) return;
 
+        // BLOQUEO: No disparar si la partida ha terminado
+        if (GameManager.Instance != null && GameManager.Instance.IsGameOver) return;
+
         bool isAttacking = false;
         if (attackAction != null)
         {

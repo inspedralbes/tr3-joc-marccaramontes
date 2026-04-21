@@ -9,6 +9,9 @@ public class ResultsUIRegisterer : MonoBehaviour
     public TextMeshProUGUI p1TimeText;
     public TextMeshProUGUI p2TimeText;
     public TextMeshProUGUI winnerText;
+    public TextMeshProUGUI bestTimeText;
+    public TextMeshProUGUI killsText;
+    public GameObject newRecordBadge;
     public TextMeshProUGUI timerHUDText; 
     public Button retryButton;          
     public Button menuButton;            
@@ -31,9 +34,26 @@ public class ResultsUIRegisterer : MonoBehaviour
     {
         if (GameManager.Instance != null)
         {
+            // Intento de auto-recuperación si la referencia está vacía
             if (resultsPanel == null)
             {
-                Debug.LogWarning("<b>[ResultsUI]</b> No se puede registrar: 'resultsPanel' es nulo. Ejecuta 'Tools/Setup HUD and Results UI'.");
+                resultsPanel = GameObject.Find("PanelResultados");
+                if (resultsPanel == null)
+                {
+                    // Buscar en toda la escena incluyendo desactivados
+                    var panels = Resources.FindObjectsOfTypeAll<GameObject>();
+                    foreach(var p in panels) {
+                        if (p.name == "PanelResultados") {
+                            resultsPanel = p;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (resultsPanel == null)
+            {
+                Debug.LogWarning("<b>[ResultsUI]</b> No se puede registrar: 'resultsPanel' no encontrado en la escena. Ejecuta 'Tools/Setup HUD and Results UI'.");
                 return;
             }
 

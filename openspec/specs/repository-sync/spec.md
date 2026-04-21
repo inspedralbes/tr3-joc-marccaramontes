@@ -27,3 +27,17 @@ El sistema SHALL realizar un commit inicial de todo el código fuente actual y s
 #### Scenario: Subida Inicial
 - **WHEN** se añaden todos los archivos (`git add .`), se hace commit y se ejecuta `git push origin main`.
 - **THEN** el código del juego y del servidor es visible en el repositorio de GitHub.
+
+### Requirement: Repository Dependency Integrity
+El sistema SHALL asegurar la integridad de las dependencias del repositorio, garantizando la compatibilidad de paquetes críticos como Burst, Collections y URP con Unity 6.
+
+#### Scenario: Verificación de Compatibilidad de Paquetes
+- **WHEN** el proyecto se migra a Unity 6.
+- **THEN** las versiones de Burst, Collections y URP se actualizan a las versiones verificadas para Unity 6 en el manifest.json.
+
+### Requirement: Script Reference Resilience
+El sistema SHALL garantizar la resiliencia de las referencias de scripts, resolviendo y manteniendo las referencias a clases de usuario como NetworkManager durante la sincronización y migración.
+
+#### Scenario: Resolución de Referencias de Scripts
+- **WHEN** se importan o actualizan scripts de usuario.
+- **THEN** las referencias en escenas y prefabs a clases críticas (e.g., NetworkManager) se mantienen o restauran automáticamente.

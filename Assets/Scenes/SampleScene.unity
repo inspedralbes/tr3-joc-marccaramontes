@@ -153,6 +153,7 @@ MonoBehaviour:
   currentState: 0
   p1Time: 0
   p2Time: 0
+  currentKills: 0
   resultsPanel: {fileID: 1100000010}
   p1TimeText: {fileID: 1100000023}
   p2TimeText: {fileID: 1100000033}
@@ -684,6 +685,7 @@ GameObject:
   - component: {fileID: 895473472}
   - component: {fileID: 895473471}
   - component: {fileID: 895473476}
+  - component: {fileID: 895473477}
   m_Layer: 0
   m_Name: Jugador
   m_TagString: Player
@@ -706,10 +708,7 @@ MonoBehaviour:
   speed: 5
   platformRadius: 5
   platformCenter: {fileID: 1766612930}
-  playerHitboxColor: {r: 0, g: 0.5, b: 1, a: 0.8}
-  playerHitboxWidth: 0.05
-  platformLimitColor: {r: 1, g: 0, b: 0, a: 0.5}
-  platformLimitWidth: 0.08
+  networkSendRate: 0.1
 --- !u!58 &895473472
 CircleCollider2D:
   m_ObjectHideFlags: 0
@@ -861,6 +860,21 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerShooting
   bulletPrefab: {fileID: 502394872, guid: 9d5e12c4b3a2f1e0d9c8b7a6f5e4d3c2, type: 3}
   fireRate: 2
+--- !u!114 &895473477
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 895473470}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5cbff319fb373e0428aa1c5a2048e492, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NetworkIdentity
+  networkId: 
+  isLocalPlayer: 0
+  hasAuthority: 0
 --- !u!1 &916106106
 GameObject:
   m_ObjectHideFlags: 0
@@ -1059,6 +1073,7 @@ GameObject:
   - component: {fileID: 1100000002}
   - component: {fileID: 1100000003}
   - component: {fileID: 1100000004}
+  - component: {fileID: 1100000008}
   m_Layer: 5
   m_Name: CanvasResultados
   m_TagString: Untagged
@@ -1212,32 +1227,13 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1100000010}
   m_CullTransparentMesh: 1
---- !u!1 &1100000010
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1100000005}
-  - component: {fileID: 1100000006}
-  - component: {fileID: 1100000007}
-  - component: {fileID: 1100000011}
-  m_Layer: 5
-  m_Name: PanelResultados
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 0
---- !u!114 &1100000011
+--- !u!114 &1100000008
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1100000010}
+  m_GameObject: {fileID: 1100000000}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ed00663efdbb95a449176fe3f538a96c, type: 3}
@@ -1250,6 +1246,24 @@ MonoBehaviour:
   timerHUDText: {fileID: 916106108}
   retryButton: {fileID: 1291365356}
   menuButton: {fileID: 1915310916}
+--- !u!1 &1100000010
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1100000005}
+  - component: {fileID: 1100000006}
+  - component: {fileID: 1100000007}
+  m_Layer: 5
+  m_Name: PanelResultados
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
 --- !u!1 &1100000020
 GameObject:
   m_ObjectHideFlags: 0

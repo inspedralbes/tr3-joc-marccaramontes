@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using TMPro; 
+using System.Collections;
 
 public class GameManager : MonoBehaviour
 {
@@ -17,12 +18,19 @@ public class GameManager : MonoBehaviour
     [Header("Resultados")]
     public float p1Time;
     public float p2Time;
+    public int currentKills;
+    private float bestTime;
+    private bool isNewRecord;
+    private const string BestTimeKey = "BestTime_Solo";
 
     [Header("Referencias UI")]
     public GameObject resultsPanel;
     public TextMeshProUGUI p1TimeText;
     public TextMeshProUGUI p2TimeText;
     public TextMeshProUGUI winnerText;
+    public TextMeshProUGUI bestTimeText;
+    public TextMeshProUGUI killsText;
+    public GameObject newRecordBadge;
     public TextMeshProUGUI timerHUDText; 
     public Button retryButton;          
     public Button menuButton;            
@@ -35,11 +43,62 @@ public class GameManager : MonoBehaviour
         {
             Instance = this;
             DontDestroyOnLoad(gameObject);
+            LoadHighScore();
         }
         else
         {
             Destroy(gameObject); 
         }
+    }
+
+    private void LoadHighScore()
+    {
+        bestTime = PlayerPrefs.GetFloat(BestTimeKey, 0f);
+    }
+
+    private void SaveHighScore()
+    {
+        if (survivalTime > bestTime)
+        {
+            bestTime = survivalTime;
+            PlayerPrefs.SetFloat(BestTimeKey, bestTime);
+            PlayerPrefs.Save();
+            isNewRecord = true;
+        }
+        else
+        {
+            isNewRecord = false;
+        }
+    }
+
+    private void CleanupScene()
+    {
+        GameObject[] enemies = GameObject.FindGameObjectsWithTag("Enemy");
+        foreach (GameObject enemy in enemies) Destroy(enemy);
+
+        GameObject[] bullets = GameObject.FindGameObjectsWithTag("Bullet");
+        foreach (GameObject bullet in bullets) Destroy(bullet);
+        
+        Debug.Log("<b>[GameManager]</b> Escena limpia: Enemigos y balas eliminados.");
+    }
+
+    private IEnumerator DeathSequenceCoroutine()
+    {
+        currentState = GameState.DeathTransition;
+        Time.timeScale = 0.3f;
+        
+        Debug.Log("<b>[GameManager]</b> Iniciando secuencia de muerte (Slow-mo 0.3x)...");
+        
+        yield return new WaitForSecondsRealtime(1.5f);
+        
+        Time.timeScale = 1.0f;
+        CleanupScene();
+        SaveHighScore();
+        
+        currentState = GameState.GameOver;
+        ShowResults();
+        
+        Debug.Log("<b>[GameManager]</b> Secuencia de muerte completada. Mostrando resultados.");
     }
 
     void Start()
@@ -116,8 +175,7 @@ public class GameManager : MonoBehaviour
         else if (currentMode == GameMode.Solo)
         {
             p1Time = survivalTime;
-            currentState = GameState.GameOver; 
-            ShowResults();
+            StartCoroutine(DeathSequenceCoroutine());
         }
         else // Local Multiplayer
         {
@@ -130,8 +188,7 @@ public class GameManager : MonoBehaviour
             else
             {
                 p2Time = survivalTime;
-                currentState = GameState.GameOver; 
-                ShowResults();
+                StartCoroutine(DeathSequenceCoroutine());
             }
         }
     }
@@ -139,9 +196,8 @@ public class GameManager : MonoBehaviour
     private void HandleOnlineGameOver(string winnerId, float time)
     {
         isGameOver = true;
-        currentState = GameState.GameOver;
         p1Time = time; // Para simplificar, mostramos el tiempo del ganador
-        ShowResults();
+        StartCoroutine(DeathSequenceCoroutine());
     }
 
     public void RegisterResultsUI(ResultsUIRegisterer ui)
@@ -150,37 +206,121 @@ public class GameManager : MonoBehaviour
         p1TimeText = ui.p1TimeText;
         p2TimeText = ui.p2TimeText;
         winnerText = ui.winnerText;
+        bestTimeText = ui.bestTimeText;
+        killsText = ui.killsText;
+        newRecordBadge = ui.newRecordBadge;
         timerHUDText = ui.timerHUDText;
         retryButton = ui.retryButton;
         menuButton = ui.menuButton;
 
-        if (retryButton != null) retryButton.onClick.AddListener(RetryGame);
-        if (menuButton != null) menuButton.onClick.AddListener(ReturnToMenu);
+        if (retryButton != null) 
+        {
+            retryButton.onClick.RemoveAllListeners();
+            retryButton.onClick.AddListener(RetryGame);
+        }
+        if (menuButton != null) 
+        {
+            menuButton.onClick.RemoveAllListeners();
+            menuButton.onClick.AddListener(ReturnToMenu);
+        }
     }
 
     private void ShowResults()
     {
+        // Auto-búsqueda de emergencia si la referencia se perdió o no se registró
+        if (resultsPanel == null)
+        {
+            Debug.Log("<b>[GameManager]</b> Intentando auto-localizar Panel de Resultados...");
+            GameObject canvas = GameObject.Find("CanvasResultados");
+            if (canvas != null)
+            {
+                // Aseguramos que el Canvas sea visible y tenga escala correcta
+                canvas.SetActive(true);
+                canvas.transform.localScale = Vector3.one;
+
+                Canvas cComp = canvas.GetComponent<Canvas>();
+                if (cComp != null) cComp.enabled = true;
+
+                // Buscamos el panel dentro del canvas (incluyendo desactivados)
+                foreach (Transform child in canvas.GetComponentsInChildren<Transform>(true))
+                {
+                    if (child.name == "PanelResultados")
+                    {
+                        resultsPanel = child.gameObject;
+                        resultsPanel.transform.localScale = Vector3.one; // Forzar escala 1
+                        Debug.Log($"<color=green><b>[GameManager]</b> ¡Panel detectado con éxito! en {child.name}</color>");
+                        
+                        p1TimeText = child.Find("P1TimeText")?.GetComponent<TextMeshProUGUI>();
+                        p2TimeText = child.Find("P2TimeText")?.GetComponent<TextMeshProUGUI>();
+                        winnerText = child.Find("WinnerText")?.GetComponent<TextMeshProUGUI>();
+                        bestTimeText = child.Find("BestTimeText")?.GetComponent<TextMeshProUGUI>();
+                        killsText = child.Find("KillsText")?.GetComponent<TextMeshProUGUI>();
+                        newRecordBadge = child.Find("NewRecordBadge")?.gameObject;
+                        
+                        // Y los botones
+                        retryButton = child.Find("RetryButton")?.GetComponent<Button>();
+                        menuButton = child.Find("MenuButton")?.GetComponent<Button>();
+                        
+                        if (retryButton != null) {
+                            retryButton.onClick.RemoveAllListeners();
+                            retryButton.onClick.AddListener(RetryGame);
+                        }
+                        if (menuButton != null) {
+                            menuButton.onClick.RemoveAllListeners();
+                            menuButton.onClick.AddListener(ReturnToMenu);
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
         if (resultsPanel != null)
         {
             resultsPanel.SetActive(true);
+            
+            // Mostrar/Ocultar insignia de récord
+            if (newRecordBadge != null) newRecordBadge.SetActive(isNewRecord);
+            
+            // Mostrar mejor tiempo
+            if (bestTimeText != null) bestTimeText.text = $"Mejor: {bestTime:F2}s";
+
+            // Mostrar bajas
+            if (killsText != null) killsText.text = $"Bajas: {currentKills}";
+
             if (currentMode == GameMode.Solo || currentMode == GameMode.Online)
             {
-                if (p1TimeText != null) p1TimeText.text = "Resultado: " + p1Time.ToString("F2") + "s";
+                if (p1TimeText != null) 
+                    p1TimeText.text = $"Resultado: {p1Time:F2}s";
+                
                 if (p2TimeText != null) p2TimeText.gameObject.SetActive(false);
             }
             else
             {
-                p1TimeText.text = "P1: " + p1Time.ToString("F2") + "s";
-                p2TimeText.text = "P2: " + p2Time.ToString("F2") + "s";
-                winnerText.text = p1Time > p2Time ? "GANA P1" : "GANA P2";
+                if (p1TimeText != null) p1TimeText.text = $"P1: {p1Time:F2}s";
+                if (p2TimeText != null) p2TimeText.text = $"P2: {p2Time:F2}s";
+                if (winnerText != null) winnerText.text = p1Time > p2Time ? "GANA P1" : "GANA P2";
+                if (killsText != null) killsText.gameObject.SetActive(false); // Ocultar bajas en multi local por ahora
             }
         }
+        else
+        {
+            Debug.LogError("<color=red><b>[GameManager]</b> ¡CRÍTICO! No se encontró 'PanelResultados' en la escena. Asegúrate de que exista un objeto llamado exactamente así dentro de 'CanvasResultados'.</color>");
+        }
+    }
+
+    public void AddKill()
+    {
+        currentKills++;
+        Debug.Log($"<b>[GameManager]</b> Baja registrada. Total: {currentKills}");
     }
 
     private void ResetSession()
     {
         survivalTime = 0;
+        currentKills = 0;
         isGameOver = false;
+        Time.timeScale = 1.0f;
         if (currentState != GameState.GameOver) currentState = GameState.Playing;
         if (resultsPanel != null) resultsPanel.SetActive(false);
     }
