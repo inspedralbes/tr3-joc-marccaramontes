@@ -88,9 +88,8 @@ public class PlayerMovement : MonoBehaviour
         }
         else
         {
-            // Fallback por si no hay PlayerInput configurado
-            movement.x = Input.GetAxisRaw("Horizontal");
-            movement.y = Input.GetAxisRaw("Vertical");
+            // Bloqueado en Unity 6 si se activa el New Input System
+            movement = Vector2.zero;
         }
         
         CheckBounds();
@@ -134,6 +133,19 @@ public class PlayerMovement : MonoBehaviour
 
     public void Die()
     {
+        // Efecto visual estilo Devil Daggers
+        GameObject explosionGo = new GameObject("PixelExplosion");
+        explosionGo.transform.position = transform.position;
+        explosionGo.AddComponent<PixelExplosion>().Play();
+
+        // Ocultar jugador
+        var renderer = GetComponent<SpriteRenderer>();
+        if (renderer != null) renderer.enabled = false;
+        
+        // Desactivar colisiones para evitar múltiples muertes
+        var collider = GetComponent<Collider2D>();
+        if (collider != null) collider.enabled = false;
+
         if (GameManager.Instance != null)
         {
             GameManager.Instance.ProcessDeath();

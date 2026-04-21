@@ -1,16 +1,15 @@
 ## ADDED Requirements
 
-### Requirement: Local High Score Persistence
-The system SHALL save and load the player's best survival time locally.
+### Requirement: Local High Score Storage
+The system SHALL save the player's best survival time to the local machine across gaming sessions.
 
-#### Scenario: First Time Playing
-- **WHEN** the game finishes for the first time
-- **THEN** the system MUST save the current survival time as the new best time
+#### Scenario: Save New High Score
+- **WHEN** the current survival time exceeds the saved "Best Time"
+- **THEN** the system MUST update the local storage with the new value
 
-#### Scenario: Breaking a Record
-- **WHEN** the current survival time is greater than the stored best time
-- **THEN** the system MUST update the stored best time with the new value
+### Requirement: Record Achievement Feedback
+The system SHALL identify when a new record has been achieved to allow visual highlighting in the UI.
 
-#### Scenario: Not Breaking a Record
-- **WHEN** the current survival time is less than or equal to the stored best time
-- **THEN** the system MUST NOT update the stored best time
+#### Scenario: New Record Flag
+- **WHEN** a match ends and the survival time is greater than the previous best
+- **THEN** the system MUST set a boolean flag `isNewRecord` to TRUE for the duration of the Results UI display

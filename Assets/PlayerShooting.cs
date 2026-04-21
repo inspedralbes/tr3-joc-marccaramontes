@@ -47,7 +47,8 @@ public class PlayerShooting : MonoBehaviour
         }
         else
         {
-            isAttacking = Input.GetButton("Fire1") || Input.GetMouseButton(0);
+            // Bloqueado en Unity 6 si se activa el New Input System
+            isAttacking = false;
         }
 
         if (isAttacking && Time.time >= nextFireTime)
@@ -61,9 +62,21 @@ public class PlayerShooting : MonoBehaviour
     {
         if (bulletPrefab == null) return;
 
-        Vector3 mousePosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-        mousePosition.z = 0;
-        Vector3 shootDirection = (mousePosition - transform.position).normalized;
+        Vector2 mousePos = Vector2.zero;
+        if (Mouse.current != null)
+        {
+            mousePos = Mouse.current.position.ReadValue();
+        }
+        else
+        {
+            Debug.LogWarning("<b>[PlayerShooting]</b> Mouse.current no encontrado.");
+            return;
+        }
+
+        Vector3 worldMousePosition = Camera.main.ScreenToWorldPoint(new Vector3(mousePos.x, mousePos.y, 0));
+        worldMousePosition.z = 0;
+        
+        Vector3 shootDirection = (worldMousePosition - transform.position).normalized;
         float angle = Mathf.Atan2(shootDirection.y, shootDirection.x) * Mathf.Rad2Deg;
         Quaternion rotation = Quaternion.AngleAxis(angle - 90f, Vector3.forward);
 

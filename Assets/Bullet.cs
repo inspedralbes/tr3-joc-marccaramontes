@@ -5,6 +5,11 @@ public class Bullet : MonoBehaviour
     public float speed = 15f;
     public float lifeTime = 3f;
 
+    void Awake()
+    {
+        gameObject.tag = "Bullet";
+    }
+
     void Start()
     {
         // Se destruye automáticamente tras el tiempo de vida definido

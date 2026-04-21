@@ -7,6 +7,11 @@ public class Enemy : MonoBehaviour
     private Vector3 currentDirection;
     private Transform player;
 
+    void Awake()
+    {
+        gameObject.tag = "Enemy";
+    }
+
     void Start()
     {
         FindPlayer();
