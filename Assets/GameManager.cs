@@ -19,9 +19,6 @@ public class GameManager : MonoBehaviour
     public float p1Time;
     public float p2Time;
     public int currentKills;
-    public float bestTime;
-    public bool isNewRecord;
-    private const string BestTimeKey = "BestTime_Solo";
 
     [Header("Referencias UI")]
     public GameObject resultsPanel;
@@ -30,14 +27,11 @@ public class GameManager : MonoBehaviour
     
     public TextMeshProUGUI p1TimeText;
     public TextMeshProUGUI p2TimeText;
-    public TextMeshProUGUI winnerText;
-    public TextMeshProUGUI bestTimeText;
+    public TextMeshProUGUI titleText;
     public TextMeshProUGUI killsText;
-    public GameObject newRecordBadge;
     public TextMeshProUGUI timerHUDText; 
     public CanvasGroup hudGroup;         
     public TextMeshProUGUI killsHUDText; 
-    public TextMeshProUGUI bestTimeHUDText; 
     public Button retryButton;          
     public Button menuButton;            
 
@@ -49,31 +43,10 @@ public class GameManager : MonoBehaviour
         {
             Instance = this;
             DontDestroyOnLoad(gameObject);
-            LoadHighScore();
         }
         else
         {
             Destroy(gameObject); 
-        }
-    }
-
-    public void LoadHighScore()
-    {
-        bestTime = PlayerPrefs.GetFloat(BestTimeKey, 0f);
-    }
-
-    public void SaveHighScore()
-    {
-        if (survivalTime > bestTime)
-        {
-            bestTime = survivalTime;
-            PlayerPrefs.SetFloat(BestTimeKey, bestTime);
-            PlayerPrefs.Save();
-            isNewRecord = true;
-        }
-        else
-        {
-            isNewRecord = false;
         }
     }
 
@@ -117,7 +90,6 @@ public class GameManager : MonoBehaviour
         yield return new WaitForSecondsRealtime(0.5f);
         
         CleanupScene();
-        SaveHighScore();
         
         currentState = GameState.GameOver;
         ShowResults();
@@ -148,26 +120,12 @@ public class GameManager : MonoBehaviour
             if (timerHUDText != null) 
             {
                 timerHUDText.text = survivalTime.ToString("F2") + "s";
-                // Transición de color si es récord
-                if (survivalTime > bestTime && bestTime > 0)
-                    timerHUDText.color = new Color(1f, 0.5f, 0f); // Orange (#FF8000 aprox)
-                else
-                    timerHUDText.color = Color.white;
+                timerHUDText.color = Color.white;
             }
 
             if (killsHUDText != null)
             {
                 killsHUDText.text = "BAJAS: " + currentKills;
-            }
-
-            if (bestTimeHUDText != null)
-            {
-                bestTimeHUDText.text = "RECORD: " + bestTime.ToString("F2") + "s";
-                // Resaltar si estamos cerca del récord
-                if (bestTime > 0 && survivalTime > bestTime - 5f && survivalTime <= bestTime)
-                    bestTimeHUDText.color = Color.yellow;
-                else
-                    bestTimeHUDText.color = new Color(1f, 1f, 1f, 0.6f);
             }
         }
     }
@@ -230,14 +188,11 @@ public class GameManager : MonoBehaviour
         
         p1TimeText = ui.p1TimeText;
         p2TimeText = ui.p2TimeText;
-        winnerText = ui.winnerText;
-        bestTimeText = ui.bestTimeText;
+        titleText = ui.titleText;
         killsText = ui.killsText;
-        newRecordBadge = ui.newRecordBadge;
         timerHUDText = ui.timerHUDText;
         hudGroup = ui.hudGroup;
         killsHUDText = ui.killsHUDText;
-        bestTimeHUDText = ui.bestTimeHUDText;
         retryButton = ui.retryButton;
         menuButton = ui.menuButton;
 
@@ -304,10 +259,8 @@ public class GameManager : MonoBehaviour
                 // Re-vincular componentes hijos por nombre
                 p1TimeText = go.transform.Find("P1TimeText")?.GetComponent<TextMeshProUGUI>();
                 p2TimeText = go.transform.Find("P2TimeText")?.GetComponent<TextMeshProUGUI>();
-                winnerText = go.transform.Find("WinnerText")?.GetComponent<TextMeshProUGUI>();
+                titleText = go.transform.Find("TitleText")?.GetComponent<TextMeshProUGUI>() ?? go.transform.Find("WinnerText")?.GetComponent<TextMeshProUGUI>();
                 killsText = go.transform.Find("KillsText")?.GetComponent<TextMeshProUGUI>();
-                bestTimeText = go.transform.Find("BestTimeText")?.GetComponent<TextMeshProUGUI>();
-                newRecordBadge = go.transform.Find("NewRecordBadge")?.gameObject;
                 
                 retryButton = go.transform.Find("RetryButton")?.GetComponent<Button>();
                 menuButton = go.transform.Find("MenuButton")?.GetComponent<Button>();
@@ -331,6 +284,15 @@ public class GameManager : MonoBehaviour
     private IEnumerator ShowResultsSequence()
     {
         resultsPanel.SetActive(true);
+        
+        // 3.1 Asignación inmediata para evitar valores en cero visibles
+        if (titleText != null) titleText.text = "PARTIDA FINALIZADA";
+        if (p1TimeText != null) p1TimeText.text = $"{p1Time:F2}s";
+        if (killsText != null) killsText.text = $"Bajas: {currentKills}";
+        
+        // Ocultar P2 en modo Solo
+        if (p2TimeText != null) p2TimeText.gameObject.SetActive(currentMode != GameMode.Solo);
+
         Debug.Log("<b>[GameManager]</b> PanelResultados activado.");
 
         if (UIAnimationManager.Instance == null)
@@ -343,23 +305,22 @@ public class GameManager : MonoBehaviour
                 yield return UIAnimationManager.Instance.FadeCanvasGroup(resultsCanvasGroup, 0f, 1f, 0.5f);
         }
 
-        if (newRecordBadge != null) newRecordBadge.SetActive(isNewRecord);
-        if (bestTimeText != null) bestTimeText.text = $"Mejor: {bestTime:F2}s";
-
-        if (killsText != null) 
+        // 3.2 Animaciones en paralelo
+        if (UIAnimationManager.Instance != null)
         {
-            if (UIAnimationManager.Instance != null)
-                yield return UIAnimationManager.Instance.CountText(killsText, 0, currentKills, 0.5f, "Bajas: ", "", "F0");
-            else
-                killsText.text = $"Bajas: {currentKills}";
-        }
+            if (killsText != null)
+            {
+                StartCoroutine(UIAnimationManager.Instance.CountText(killsText, 0, currentKills, 0.5f, "Bajas: ", "", "F0"));
+                StartCoroutine(UIAnimationManager.Instance.PulseScale(killsText.transform, 1.1f, 0.5f));
+            }
 
-        if (p1TimeText != null) 
-        {
-            if (UIAnimationManager.Instance != null)
-                yield return UIAnimationManager.Instance.CountText(p1TimeText, 0, p1Time, 0.8f, "Resultado: ", "s");
-            else
-                p1TimeText.text = $"Resultado: {p1Time:F2}s";
+            if (p1TimeText != null)
+            {
+                StartCoroutine(UIAnimationManager.Instance.CountText(p1TimeText, 0, p1Time, 0.8f, "Resultado: ", "s"));
+                StartCoroutine(UIAnimationManager.Instance.PulseScale(p1TimeText.transform, 1.1f, 0.8f));
+            }
+            
+            yield return new WaitForSecondsRealtime(0.8f);
         }
     }
 

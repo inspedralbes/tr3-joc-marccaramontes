@@ -93,28 +93,53 @@ public class SceneSetupHelper : Editor
         panelObj.SetActive(false); 
         var rect = panelObj.GetComponent<RectTransform>();
         rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0.5f, 0.5f);
-        rect.sizeDelta = new Vector2(500, 600);
+        rect.sizeDelta = new Vector2(600, 700); // Aumentado para mejor visualización
         panelObj.GetComponent<Image>().color = new Color(0, 0, 0, 0.95f);
+
+        // CONFIGURAR LAYOUT
+        var vlg = panelObj.GetComponent<VerticalLayoutGroup>();
+        vlg.padding = new RectOffset(40, 40, 60, 60);
+        vlg.spacing = 30;
+        vlg.childAlignment = TextAnchor.MiddleCenter;
+        vlg.childControlHeight = vlg.childControlWidth = false;
+        vlg.childForceExpandHeight = vlg.childForceExpandWidth = false;
+
+        panelObj.GetComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
         // 5. VINCULACIÓN AL REGISTERER
         ResultsUIRegisterer registerer = canvasObj.GetComponent<ResultsUIRegisterer>() ?? canvasObj.AddComponent<ResultsUIRegisterer>();
         registerer.resultsPanel = panelObj;
         registerer.deathFlashOverlay = flashObj;
 
-        // Crear/Actualizar elementos hijos
-        registerer.p1TimeText = CreateTextIfMissing("P1TimeText", panelObj.transform, "0.00s", 60, Color.white, true);
-        registerer.killsText = CreateTextIfMissing("KillsText", panelObj.transform, "Bajas: 0", 28, Color.white, false);
-        registerer.bestTimeText = CreateTextIfMissing("BestTimeText", panelObj.transform, "Mejor: 0.00s", 22, new Color(1, 1, 1, 0.6f), false);
-        
-        GameObject badge = CreateTextIfMissing("NewRecordBadge", panelObj.transform, "¡NUEVO RÉCORD!", 24, Color.yellow, true).gameObject;
-        registerer.newRecordBadge = badge;
-        badge.SetActive(false);
+        // Limpieza de elementos antiguos "Mejor" o "Record"
+        string[] obsoleteNames = { "BestTimeText", "BestRecord", "NewRecordBadge", "P2TimeText" };
+        foreach (string obs in obsoleteNames)
+        {
+            Transform obsTr = panelObj.transform.Find(obs);
+            if (obsTr != null) DestroyImmediate(obsTr.gameObject);
+        }
 
+        // Crear/Actualizar elementos hijos con orden específico
+        registerer.titleText = CreateTextIfMissing("TitleText", panelObj.transform, "PARTIDA FINALIZADA", 48, Color.red, true);
+        registerer.titleText.transform.SetAsFirstSibling();
+
+        registerer.p1TimeText = CreateTextIfMissing("P1TimeText", panelObj.transform, "0.00s", 72, Color.white, true);
+        registerer.p1TimeText.transform.SetSiblingIndex(1);
+
+        registerer.killsText = CreateTextIfMissing("KillsText", panelObj.transform, "Bajas: 0", 32, Color.white, false);
+        registerer.killsText.transform.SetSiblingIndex(2);
+        
         registerer.retryButton = CreateStyledButton("RetryButton", panelObj.transform, "REINTENTAR", new Color(0.2f, 0.2f, 0.2f)).GetComponent<Button>();
+        registerer.retryButton.transform.SetSiblingIndex(3);
+
         registerer.menuButton = CreateStyledButton("MenuButton", panelObj.transform, "MENÚ", new Color(0.2f, 0.2f, 0.2f)).GetComponent<Button>();
+        registerer.menuButton.transform.SetSiblingIndex(4);
 
         // 5.5 HUD EN TIEMPO REAL
         SetupHUD(canvasObj, registerer);
+
+        // 5.6 LIMPIEZA DE DUPLICADOS (TimerHUD fuera de HUDGroup)
+        CleanupDuplicateTimers(canvasObj);
 
         // 6. ATMÓSFERA Y LUCES
         SetupAtmosphere(scene);
@@ -149,10 +174,6 @@ public class SceneSetupHelper : Editor
         // 2. Timer (Top-Center)
         registerer.timerHUDText = CreateHUDText("TimerHUD", hudGroupGo.transform, "0.00s", 48, Color.white, new Vector2(0.5f, 1), new Vector2(0.5f, 0.95f));
         registerer.timerHUDText.fontStyle = FontStyles.Bold;
-
-        // 3. Best Time (Top-Right)
-        registerer.bestTimeHUDText = CreateHUDText("BestTimeHUD", hudGroupGo.transform, "RECORD: 0.00s", 24, new Color(1, 1, 1, 0.6f), new Vector2(1, 1), new Vector2(0.95f, 0.95f));
-        registerer.bestTimeHUDText.alignment = TextAlignmentOptions.Right;
 
         Debug.Log("<b>[SceneSetup]</b> HUD Group configurado y vinculado.");
     }
@@ -287,9 +308,20 @@ public class SceneSetupHelper : Editor
         Transform tr = parent.Find(name);
         GameObject btnGo = (tr != null) ? tr.gameObject : new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
         btnGo.transform.SetParent(parent, false);
-        btnGo.GetComponent<RectTransform>().sizeDelta = new Vector2(300, 55);
+        btnGo.GetComponent<RectTransform>().sizeDelta = new Vector2(450, 85); // Tamaño aumentado
         btnGo.GetComponent<Image>().color = baseColor;
-        CreateTextIfMissing("Text", btnGo.transform, label, 22, Color.white, true);
+        CreateTextIfMissing("Text", btnGo.transform, label, 28, Color.white, true);
         return btnGo;
+    }
+
+    private static void CleanupDuplicateTimers(GameObject canvasObj)
+    {
+        // Buscar cualquier TimerHUD que sea hijo directo del Canvas (el duplicado fantasma)
+        Transform ghostTimer = canvasObj.transform.Find("TimerHUD");
+        if (ghostTimer != null)
+        {
+            Debug.Log("<b>[SceneSetup]</b> Cronómetro duplicado detectado en la raíz del Canvas. Eliminando...");
+            DestroyImmediate(ghostTimer.gameObject);
+        }
     }
 }

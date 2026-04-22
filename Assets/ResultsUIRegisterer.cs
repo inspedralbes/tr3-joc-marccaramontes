@@ -9,14 +9,11 @@ public class ResultsUIRegisterer : MonoBehaviour
     public GameObject deathFlashOverlay; 
     public TextMeshProUGUI p1TimeText;
     public TextMeshProUGUI p2TimeText; // Restaurado para evitar error de compilación
-    public TextMeshProUGUI winnerText;
-    public TextMeshProUGUI bestTimeText;
+    public TextMeshProUGUI titleText;
     public TextMeshProUGUI killsText;
-    public GameObject newRecordBadge;
     public TextMeshProUGUI timerHUDText; 
     public CanvasGroup hudGroup;        
     public TextMeshProUGUI killsHUDText; 
-    public TextMeshProUGUI bestTimeHUDText; 
     public Button retryButton;          
     public Button menuButton;            
 
