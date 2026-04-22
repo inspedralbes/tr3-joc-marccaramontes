@@ -26,8 +26,8 @@ public class GameManager : MonoBehaviour
     public GameObject deathFlashOverlay; 
     
     public TextMeshProUGUI p1TimeText;
-    public TextMeshProUGUI p2TimeText;
     public TextMeshProUGUI titleText;
+    public TextMeshProUGUI winnerText;
     public TextMeshProUGUI killsText;
     public TextMeshProUGUI timerHUDText; 
     public CanvasGroup hudGroup;         
@@ -187,8 +187,8 @@ public class GameManager : MonoBehaviour
         deathFlashOverlay = ui.deathFlashOverlay;
         
         p1TimeText = ui.p1TimeText;
-        p2TimeText = ui.p2TimeText;
         titleText = ui.titleText;
+        winnerText = ui.winnerText;
         killsText = ui.killsText;
         timerHUDText = ui.timerHUDText;
         hudGroup = ui.hudGroup;
@@ -258,8 +258,8 @@ public class GameManager : MonoBehaviour
                 
                 // Re-vincular componentes hijos por nombre
                 p1TimeText = go.transform.Find("P1TimeText")?.GetComponent<TextMeshProUGUI>();
-                p2TimeText = go.transform.Find("P2TimeText")?.GetComponent<TextMeshProUGUI>();
-                titleText = go.transform.Find("TitleText")?.GetComponent<TextMeshProUGUI>() ?? go.transform.Find("WinnerText")?.GetComponent<TextMeshProUGUI>();
+                titleText = go.transform.Find("TitleText")?.GetComponent<TextMeshProUGUI>();
+                winnerText = go.transform.Find("WinnerText")?.GetComponent<TextMeshProUGUI>();
                 killsText = go.transform.Find("KillsText")?.GetComponent<TextMeshProUGUI>();
                 
                 retryButton = go.transform.Find("RetryButton")?.GetComponent<Button>();
@@ -290,8 +290,7 @@ public class GameManager : MonoBehaviour
         if (p1TimeText != null) p1TimeText.text = $"{p1Time:F2}s";
         if (killsText != null) killsText.text = $"Bajas: {currentKills}";
         
-        // Ocultar P2 en modo Solo
-        if (p2TimeText != null) p2TimeText.gameObject.SetActive(currentMode != GameMode.Solo);
+        if (winnerText != null) winnerText.gameObject.SetActive(false);
 
         Debug.Log("<b>[GameManager]</b> PanelResultados activado.");
 

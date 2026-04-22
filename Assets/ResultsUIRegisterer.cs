@@ -7,9 +7,9 @@ public class ResultsUIRegisterer : MonoBehaviour
     [Header("Referencias UI")]
     public GameObject resultsPanel;
     public GameObject deathFlashOverlay; 
-    public TextMeshProUGUI p1TimeText;
-    public TextMeshProUGUI p2TimeText; // Restaurado para evitar error de compilación
     public TextMeshProUGUI titleText;
+    public TextMeshProUGUI winnerText;
+    public TextMeshProUGUI p1TimeText;
     public TextMeshProUGUI killsText;
     public TextMeshProUGUI timerHUDText; 
     public CanvasGroup hudGroup;        
@@ -19,7 +19,6 @@ public class ResultsUIRegisterer : MonoBehaviour
 
     private void Awake()
     {
-        // Forzar activación del objeto para asegurar el registro
         gameObject.SetActive(true);
         TryRegister();
     }
@@ -39,7 +38,6 @@ public class ResultsUIRegisterer : MonoBehaviour
 
     void Start()
     {
-        // Solo ocultamos el panel, NO el CanvasResultados
         if (resultsPanel != null) resultsPanel.SetActive(false);
     }
 }
