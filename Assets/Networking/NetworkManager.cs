@@ -146,6 +146,7 @@ public class NetworkManager : MonoBehaviour
     public event Action OnMatchStarted;
     public event Action<string, float> OnGameOver;
     public event Action<string, Vector3> OnEnemySpawned;
+    public event Action<string, Vector3> OnEnemySynced;
 
     private void HandleMessage(string type, string payload)
     {
@@ -172,6 +173,10 @@ public class NetworkManager : MonoBehaviour
             case "SPAWN_ENEMY":
                 var enemyData = JsonUtility.FromJson<EnemyNetData>(payload);
                 OnEnemySpawned?.Invoke(enemyData.enemyId, new Vector3(enemyData.x, enemyData.y, 0));
+                break;
+            case "ENEMY_SYNC":
+                var syncData = JsonUtility.FromJson<EnemySyncData>(payload);
+                OnEnemySynced?.Invoke(syncData.enemyId, new Vector3(syncData.x, syncData.y, 0));
                 break;
             case "SHOOT":
                 var shootData = JsonUtility.FromJson<ShootNetData>(payload);
@@ -211,5 +216,6 @@ public class NetworkManager : MonoBehaviour
     [Serializable] public class ShootNetData { public string playerId; public float x; public float y; public float rotation; }
     [Serializable] public class GameOverData { public string playerId; public float survivalTime; }
     [Serializable] public class EnemyNetData { public string enemyId; public float x; public float y; }
+    [Serializable] public class EnemySyncData { public string enemyId; public float x; public float y; }
     [Serializable] public class MoveData { public string playerId; public float x; public float y; public float rotation; }
 }

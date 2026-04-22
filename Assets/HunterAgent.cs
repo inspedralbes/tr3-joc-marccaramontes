@@ -13,16 +13,47 @@ public class HunterAgent : Agent
     public override void Initialize()
     {
         rb = GetComponent<Rigidbody2D>();
+
+        // Requisito 2.3: Solo el Host debe tomar decisiones.
+        // Si no somos el Host, desactivamos el DecisionRequester para que no pida acciones.
+        if (NetworkManager.Instance != null && !NetworkManager.Instance.isHost)
+        {
+            var requester = GetComponent<Unity.MLAgents.DecisionRequester>();
+            if (requester != null) requester.enabled = false;
+        }
     }
 
     public override void OnEpisodeBegin()
     {
         // Resetear posición si es necesario
-        // transform.localPosition = Vector3.zero;
+    }
+
+    private void FindClosestPlayer()
+    {
+        GameObject[] players = GameObject.FindGameObjectsWithTag("Player");
+        float closestDistance = Mathf.Infinity;
+        Transform closestPlayer = null;
+
+        foreach (GameObject player in players)
+        {
+            float distance = Vector3.Distance(transform.position, player.transform.position);
+            if (distance < closestDistance)
+            {
+                closestDistance = distance;
+                closestPlayer = player.transform;
+            }
+        }
+
+        target = closestPlayer;
     }
 
     public override void CollectObservations(VectorSensor sensor)
     {
+        // Requisito 2.3: Solo el Host observa y decide
+        if (NetworkManager.Instance != null && !NetworkManager.Instance.isHost) return;
+
+        FindClosestPlayer();
+
         // Observar la posición propia y del objetivo
         sensor.AddObservation(transform.localPosition);
         if (target != null)
@@ -36,6 +67,9 @@ public class HunterAgent : Agent
 
     public override void OnActionReceived(ActionBuffers actions)
     {
+        // Requisito 2.3: Solo el Host ejecuta acciones de IA
+        if (NetworkManager.Instance != null && !NetworkManager.Instance.isHost) return;
+
         // Movimiento simple en 2D basado en las acciones del agente
         float moveX = actions.ContinuousActions[0];
         float moveY = actions.ContinuousActions[1];
@@ -50,7 +84,6 @@ public class HunterAgent : Agent
             if (distance < 1.5f)
             {
                 SetReward(1.0f);
-                // EndEpisode(); // Podríamos terminar el episodio si "atrapa" al jugador
             }
             else
             {
@@ -63,6 +96,8 @@ public class HunterAgent : Agent
     public override void Heuristic(in ActionBuffers actionsOut)
     {
         // Control manual para testing
+        if (NetworkManager.Instance != null && !NetworkManager.Instance.isHost) return;
+
         var continuousActions = actionsOut.ContinuousActions;
         continuousActions[0] = Input.GetAxisRaw("Horizontal");
         continuousActions[1] = Input.GetAxisRaw("Vertical");
@@ -70,6 +105,8 @@ public class HunterAgent : Agent
 
     private void OnCollisionEnter2D(Collision2D collision)
     {
+        if (NetworkManager.Instance != null && !NetworkManager.Instance.isHost) return;
+
         if (collision.gameObject.CompareTag("Player"))
         {
             SetReward(2.0f);

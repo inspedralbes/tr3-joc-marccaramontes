@@ -15,6 +15,7 @@ class SocketController {
                 case 'MOVE':
                 case 'SHOOT':
                 case 'SPAWN_ENEMY':
+                case 'ENEMY_SYNC':
                 case 'DEATH':
                     this.gameService.broadcastToRoom(ws, type, payload);
                     break;
