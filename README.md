@@ -6,7 +6,12 @@ Este es el proyecto transversal para la asignatura 2DAM 25-26.
 - Marc Caramontes
 
 ## Descripción
-Un videojuego 2D desarrollado en Unity 2022.3 LTS con un backend en Node.js (Socket.IO) para funcionalidades multijugador.
+Un videojuego 2D desarrollado en Unity 2022.3 LTS con un backend en Node.js (Express + WebSockets) utilizando **SQLite** para la persistencia de datos (estadísticas de usuario y resultados).
+
+## Requisitos
+- Unity 2022.3 LTS
+- Node.js 20+
+- (No requiere servidor de base de datos externo)
 
 ## Gestor de Tareas
 - [Taiga/Jira/Trello URL Placeholder]

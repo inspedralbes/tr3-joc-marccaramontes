@@ -78,3 +78,9 @@ crashlytics-build.properties
 # But keep the artifacts
 !openspec/
 !openspec/**
+
+# SQLite Databases
+database.sqlite
+*.sqlite
+*.db
+
