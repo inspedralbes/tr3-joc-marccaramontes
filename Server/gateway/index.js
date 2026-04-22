@@ -14,7 +14,7 @@ app.get('/health', (req, res) => {
 });
 
 // Route HTTP /api requests to API Service
-app.all('/api/*', (req, res) => {
+app.use('/api', (req, res) => {
     console.log(`[Gateway] Routing API request: ${req.url}`);
     proxy.web(req, res, { target: API_SERVICE_URL }, (err) => {
         console.error('[Gateway] API Proxy Error:', err.message);
