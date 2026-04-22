@@ -10,7 +10,7 @@ public class NetworkManager : MonoBehaviour
     public static NetworkManager Instance { get; private set; }
 
     [Header("Configuración")]
-    public string serverWsUrl = "ws://localhost:3000/socket.io/?EIO=4&transport=websocket";
+    public string serverWsUrl = "ws://localhost:3000/ws";
     public string serverHttpUrl = "http://localhost:3000/api";
     
     [Header("Estado")]
@@ -19,7 +19,7 @@ public class NetworkManager : MonoBehaviour
     public string localPlayerId;
     public string localPlayerName;
 
-    private SocketIOClient client;
+    private NativeWebSocketClient client;
 
     private void Awake()
     {
@@ -27,7 +27,7 @@ public class NetworkManager : MonoBehaviour
         {
             Instance = this;
             DontDestroyOnLoad(gameObject);
-            client = gameObject.AddComponent<SocketIOClient>();
+            client = gameObject.AddComponent<NativeWebSocketClient>();
         }
         else
         {
@@ -39,7 +39,7 @@ public class NetworkManager : MonoBehaviour
     {
         client.OnConnected += HandleConnected;
         client.OnDisconnected += HandleDisconnected;
-        client.OnEventReceived += HandleEvent;
+        client.OnMessageReceived += HandleMessage;
     }
 
     // --- Comunicación HTTP (UnityWebRequest) ---
@@ -52,6 +52,7 @@ public class NetworkManager : MonoBehaviour
     private IEnumerator PostRequestRoutine<T>(string endpoint, object data, Action<T> onSuccess, Action<string> onError)
     {
         string json = JsonUtility.ToJson(data);
+        // El endpoint ya debe empezar por / (ej: /rooms/create)
         string url = $"{serverHttpUrl}{endpoint}";
         
         using (UnityWebRequest request = new UnityWebRequest(url, "POST"))
@@ -93,28 +94,28 @@ public class NetworkManager : MonoBehaviour
         }
         else
         {
-            // Si ya está conectado (ej. re-unión), emitimos directamente
             EmitJoinSocket();
         }
     }
 
     private void HandleConnected()
     {
-        Debug.Log("[NetworkManager] Conexión Socket establecida. Vinculando con sala...");
+        Debug.Log("[NetworkManager] WS Connected. Joining room...");
         EmitJoinSocket();
     }
 
     private void EmitJoinSocket()
     {
-        client.Emit("join_room_socket", new JoinSocketData { 
+        var data = new JoinSocketData { 
             roomId = currentRoomId, 
             playerName = localPlayerName 
-        });
+        };
+        client.Send("JOIN_ROOM", data);
     }
 
-    public void Emit(string eventName, object data)
+    public void Emit(string type, object data)
     {
-        client.Emit(eventName, data);
+        client.Send(type, data);
     }
 
     public void ReportResults(float survivalTime)
@@ -133,7 +134,7 @@ public class NetworkManager : MonoBehaviour
 
     private void HandleDisconnected()
     {
-        Debug.LogWarning("[NetworkManager] Conexión perdida.");
+        Debug.LogWarning("[NetworkManager] WS Disconnected.");
     }
 
     // --- Eventos de Juego ---
@@ -146,41 +147,41 @@ public class NetworkManager : MonoBehaviour
     public event Action<string, float> OnGameOver;
     public event Action<string, Vector3> OnEnemySpawned;
 
-    private void HandleEvent(string eventName, string data)
+    private void HandleMessage(string type, string payload)
     {
-        Debug.Log($"[NetworkManager] Evento recibido: {eventName} -> {data}");
+        Debug.Log($"[NetworkManager] Message received: {type}");
         
-        switch (eventName)
+        switch (type)
         {
-            case "room_joined_confirmed":
-                var confirmedData = JsonUtility.FromJson<RoomConfirmedData>(data);
+            case "ROOM_JOINED_CONFIRMED":
+                var confirmedData = JsonUtility.FromJson<RoomConfirmedData>(payload);
                 isHost = confirmedData.isHost;
                 break;
-            case "player_joined":
-                var joinData = JsonUtility.FromJson<JoinData>(data);
+            case "PLAYER_JOINED":
+                var joinData = JsonUtility.FromJson<JoinData>(payload);
                 OnRemotePlayerJoined?.Invoke(joinData.playerId, joinData.playerName);
                 break;
-            case "player_left":
-                var leftData = JsonUtility.FromJson<JoinData>(data); // Reutilizamos JoinData ya que tiene playerId
+            case "PLAYER_LEFT":
+                var leftData = JsonUtility.FromJson<JoinData>(payload);
                 OnRemotePlayerLeft?.Invoke(leftData.playerId);
                 break;
-            case "player_moved":
-                var moveData = JsonUtility.FromJson<MoveData>(data);
+            case "MOVE":
+                var moveData = JsonUtility.FromJson<MoveData>(payload);
                 OnRemotePlayerMoved?.Invoke(moveData.playerId, new Vector3(moveData.x, moveData.y, 0), moveData.rotation);
                 break;
-            case "enemy_spawned":
-                var enemyData = JsonUtility.FromJson<EnemyNetData>(data);
+            case "SPAWN_ENEMY":
+                var enemyData = JsonUtility.FromJson<EnemyNetData>(payload);
                 OnEnemySpawned?.Invoke(enemyData.enemyId, new Vector3(enemyData.x, enemyData.y, 0));
                 break;
-            case "player_shot":
-                var shootData = JsonUtility.FromJson<ShootNetData>(data);
+            case "SHOOT":
+                var shootData = JsonUtility.FromJson<ShootNetData>(payload);
                 OnRemotePlayerShot?.Invoke(shootData.playerId, new Vector3(shootData.x, shootData.y, 0), shootData.rotation);
                 break;
-            case "match_started":
+            case "START_MATCH":
                 OnMatchStarted?.Invoke();
                 break;
-            case "game_over":
-                var gameOverData = JsonUtility.FromJson<GameOverData>(data);
+            case "DEATH":
+                var gameOverData = JsonUtility.FromJson<GameOverData>(payload);
                 OnGameOver?.Invoke(gameOverData.playerId, gameOverData.survivalTime);
                 break;
         }
@@ -190,8 +191,8 @@ public class NetworkManager : MonoBehaviour
     {
         if (string.IsNullOrEmpty(currentRoomId)) return;
         
-        Debug.Log($"[NetworkManager] Saliendo de la sala {currentRoomId}...");
-        client.Emit("leave_room", new LeaveData { roomId = currentRoomId });
+        Debug.Log($"[NetworkManager] Leaving room {currentRoomId}...");
+        client.Send("LEAVE_ROOM", new LeaveData { roomId = currentRoomId });
         currentRoomId = "";
         isHost = false;
     }
@@ -203,63 +204,12 @@ public class NetworkManager : MonoBehaviour
     [Serializable] public class RoomResponse { public string roomId; public bool success; }
     [Serializable] public class ResultRequest { public string roomId; public string playerName; public float survivalTime; }
 
-    [Serializable]
-    public class LeaveData
-    {
-        public string roomId;
-    }
-
-    [Serializable]
-    public class JoinSocketData
-    {
-        public string roomId;
-        public string playerName;
-    }
-
-    [Serializable]
-    public class RoomConfirmedData
-    {
-        public string roomId;
-        public bool isHost;
-    }
-
-    [Serializable]
-    public class JoinData
-    {
-        public string playerId;
-        public string playerName;
-    }
-
-    [Serializable]
-    public class ShootNetData
-    {
-        public string playerId;
-        public float x;
-        public float y;
-        public float rotation;
-    }
-
-    [Serializable]
-    public class GameOverData
-    {
-        public string playerId;
-        public float survivalTime;
-    }
-
-    [Serializable]
-    public class EnemyNetData
-    {
-        public string enemyId;
-        public float x;
-        public float y;
-    }
-
-    [Serializable]
-    public class MoveData
-    {
-        public string playerId;
-        public float x;
-        public float y;
-        public float rotation;
-    }
+    [Serializable] public class LeaveData { public string roomId; }
+    [Serializable] public class JoinSocketData { public string roomId; public string playerName; }
+    [Serializable] public class RoomConfirmedData { public string roomId; public bool isHost; }
+    [Serializable] public class JoinData { public string playerId; public string playerName; }
+    [Serializable] public class ShootNetData { public string playerId; public float x; public float y; public float rotation; }
+    [Serializable] public class GameOverData { public string playerId; public float survivalTime; }
+    [Serializable] public class EnemyNetData { public string enemyId; public float x; public float y; }
+    [Serializable] public class MoveData { public string playerId; public float x; public float y; public float rotation; }
 }
