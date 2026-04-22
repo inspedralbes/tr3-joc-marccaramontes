@@ -57,4 +57,34 @@ public class UIAnimationManager : MonoBehaviour
 
         textElement.text = $"{prefix}{end.ToString(format)}{suffix}";
     }
+
+    /// <summary>
+    /// Realiza un efecto de pulso (escala) en un Transform.
+    /// </summary>
+    public IEnumerator PulseScale(Transform target, float scaleAmount, float duration)
+    {
+        Vector3 originalScale = Vector3.one;
+        Vector3 targetScale = originalScale * scaleAmount;
+        float halfDuration = duration / 2f;
+
+        // Scale Up
+        float elapsed = 0f;
+        while (elapsed < halfDuration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            target.localScale = Vector3.Lerp(originalScale, targetScale, elapsed / halfDuration);
+            yield return null;
+        }
+
+        // Scale Down
+        elapsed = 0f;
+        while (elapsed < halfDuration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            target.localScale = Vector3.Lerp(targetScale, originalScale, elapsed / halfDuration);
+            yield return null;
+        }
+
+        target.localScale = originalScale;
+    }
 }

@@ -113,11 +113,140 @@ public class SceneSetupHelper : Editor
         registerer.retryButton = CreateStyledButton("RetryButton", panelObj.transform, "REINTENTAR", new Color(0.2f, 0.2f, 0.2f)).GetComponent<Button>();
         registerer.menuButton = CreateStyledButton("MenuButton", panelObj.transform, "MENÚ", new Color(0.2f, 0.2f, 0.2f)).GetComponent<Button>();
 
+        // 5.5 HUD EN TIEMPO REAL
+        SetupHUD(canvasObj, registerer);
+
+        // 6. ATMÓSFERA Y LUCES
+        SetupAtmosphere(scene);
+        SetupPlayerLight(scene);
+
         EditorUtility.SetDirty(registerer);
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
 
-        Debug.Log("<color=cyan><b>[SceneSetup]</b> Escena reparada para Unity 6. Managers y Tags creados.</color>");
+        Debug.Log("<color=cyan><b>[SceneSetup]</b> Escena reparada para Unity 6. Managers, Tags, HUD y Atmósfera configurados.</color>");
+    }
+
+    private static void SetupHUD(GameObject canvasObj, ResultsUIRegisterer registerer)
+    {
+        GameObject hudGroupGo = canvasObj.transform.Find("HUDGroup")?.gameObject;
+        if (hudGroupGo == null)
+        {
+            hudGroupGo = new GameObject("HUDGroup", typeof(RectTransform), typeof(CanvasGroup));
+            hudGroupGo.transform.SetParent(canvasObj.transform, false);
+        }
+        
+        RectTransform hudRect = hudGroupGo.GetComponent<RectTransform>();
+        hudRect.anchorMin = Vector2.zero;
+        hudRect.anchorMax = Vector2.one;
+        hudRect.sizeDelta = Vector2.zero;
+        
+        registerer.hudGroup = hudGroupGo.GetComponent<CanvasGroup>();
+
+        // 1. Kills (Top-Left)
+        registerer.killsHUDText = CreateHUDText("KillsHUD", hudGroupGo.transform, "BAJAS: 0", 32, Color.white, new Vector2(0, 1), new Vector2(0.05f, 0.95f));
+        
+        // 2. Timer (Top-Center)
+        registerer.timerHUDText = CreateHUDText("TimerHUD", hudGroupGo.transform, "0.00s", 48, Color.white, new Vector2(0.5f, 1), new Vector2(0.5f, 0.95f));
+        registerer.timerHUDText.fontStyle = FontStyles.Bold;
+
+        // 3. Best Time (Top-Right)
+        registerer.bestTimeHUDText = CreateHUDText("BestTimeHUD", hudGroupGo.transform, "RECORD: 0.00s", 24, new Color(1, 1, 1, 0.6f), new Vector2(1, 1), new Vector2(0.95f, 0.95f));
+        registerer.bestTimeHUDText.alignment = TextAlignmentOptions.Right;
+
+        Debug.Log("<b>[SceneSetup]</b> HUD Group configurado y vinculado.");
+    }
+
+    private static TextMeshProUGUI CreateHUDText(string name, Transform parent, string content, float size, Color col, Vector2 anchor, Vector2 pivotPos)
+    {
+        Transform tr = parent.Find(name);
+        GameObject go = (tr != null) ? tr.gameObject : new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        go.transform.SetParent(parent, false);
+        
+        RectTransform rect = go.GetComponent<RectTransform>();
+        rect.anchorMin = rect.anchorMax = anchor;
+        rect.pivot = anchor;
+        rect.anchoredPosition = Vector2.zero; // Se ajustará con márgenes si es necesario, pero por ahora centrado en el anchor
+        
+        // Ajuste manual de posición según el anchor para dar margen
+        float margin = 40f;
+        if (anchor.x == 0) rect.anchoredPosition = new Vector2(margin, -margin);
+        else if (anchor.x == 1) rect.anchoredPosition = new Vector2(-margin, -margin);
+        else rect.anchoredPosition = new Vector2(0, -margin);
+
+        var tmp = go.GetComponent<TextMeshProUGUI>();
+        tmp.text = content; tmp.fontSize = size; tmp.color = col;
+        tmp.alignment = TextAlignmentOptions.Center;
+        tmp.raycastTarget = false;
+        
+        return tmp;
+    }
+
+    private static void SetupAtmosphere(UnityEngine.SceneManagement.Scene scene)
+    {
+        // Cámara
+        Camera cam = Object.FindFirstObjectByType<Camera>();
+        if (cam != null)
+        {
+            cam.backgroundColor = Color.black;
+            cam.clearFlags = CameraClearFlags.SolidColor;
+            Debug.Log("<b>[SceneSetup]</b> Cámara configurada (Fondo Negro).");
+        }
+
+        // Luz Global 2D
+        var lights = Object.FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None)
+            .Where(m => m.GetType().Name == "Light2D").ToList();
+        
+        foreach (var light in lights)
+        {
+            var typeProp = light.GetType().GetProperty("lightType");
+            if (typeProp != null && (int)typeProp.GetValue(light) == 4) // 4 = Global en URP 2D
+            {
+                var intensityProp = light.GetType().GetProperty("intensity");
+                if (intensityProp != null) intensityProp.SetValue(light, 0.15f);
+                Debug.Log("<b>[SceneSetup]</b> Luz Global ajustada a 0.15.");
+            }
+        }
+
+        // Plataforma
+        GameObject platform = GameObject.FindGameObjectWithTag("Platform");
+        if (platform != null)
+        {
+            SpriteRenderer sr = platform.GetComponent<SpriteRenderer>();
+            if (sr != null) sr.color = new Color(0.1f, 0.1f, 0.1f, 1f); // #1A1A1A aprox
+            Debug.Log("<b>[SceneSetup]</b> Plataforma oscurecida.");
+        }
+    }
+
+    private static void SetupPlayerLight(UnityEngine.SceneManagement.Scene scene)
+    {
+        GameObject player = GameObject.FindGameObjectWithTag("Player");
+        if (player == null) return;
+
+        // Intentar encontrar o añadir Light2D
+        System.Type light2DType = System.Type.GetType("UnityEngine.Rendering.Universal.Light2D, Unity.RenderPipelines.Universal.Runtime");
+        if (light2DType == null) return;
+
+        Component lightComp = player.GetComponent(light2DType);
+        if (lightComp == null)
+        {
+            lightComp = player.AddComponent(light2DType);
+        }
+
+        // Configurar vía Reflexión (para evitar errores si el ensamblado no está bien referenciado en el script del editor)
+        var typeProp = light2DType.GetProperty("lightType");
+        if (typeProp != null) typeProp.SetValue(lightComp, 0); // 0 = Point
+
+        var radiusProp = light2DType.GetProperty("pointLightOuterRadius");
+        if (radiusProp != null) radiusProp.SetValue(lightComp, 8f);
+
+        var colorProp = light2DType.GetProperty("color");
+        if (colorProp != null) colorProp.SetValue(lightComp, new Color(1f, 0.8f, 0.53f)); // #FFCC88 aprox
+
+        var intensityProp = light2DType.GetProperty("intensity");
+        if (intensityProp != null) intensityProp.SetValue(lightComp, 1.2f);
+
+        Debug.Log("<b>[SceneSetup]</b> Luz de antorcha añadida al Jugador.");
     }
 
     private static void CreateTag(string tagName)

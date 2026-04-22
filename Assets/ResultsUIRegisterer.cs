@@ -14,6 +14,9 @@ public class ResultsUIRegisterer : MonoBehaviour
     public TextMeshProUGUI killsText;
     public GameObject newRecordBadge;
     public TextMeshProUGUI timerHUDText; 
+    public CanvasGroup hudGroup;        
+    public TextMeshProUGUI killsHUDText; 
+    public TextMeshProUGUI bestTimeHUDText; 
     public Button retryButton;          
     public Button menuButton;            
 

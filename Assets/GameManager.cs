@@ -35,6 +35,9 @@ public class GameManager : MonoBehaviour
     public TextMeshProUGUI killsText;
     public GameObject newRecordBadge;
     public TextMeshProUGUI timerHUDText; 
+    public CanvasGroup hudGroup;         
+    public TextMeshProUGUI killsHUDText; 
+    public TextMeshProUGUI bestTimeHUDText; 
     public Button retryButton;          
     public Button menuButton;            
 
@@ -94,6 +97,12 @@ public class GameManager : MonoBehaviour
         
         Debug.Log("<color=red><b>[GameManager]</b> Secuencia de muerte iniciada.</color>");
 
+        // OCULTAR HUD
+        if (hudGroup != null && UIAnimationManager.Instance != null)
+        {
+            StartCoroutine(UIAnimationManager.Instance.FadeCanvasGroup(hudGroup, 1f, 0f, 0.2f));
+        }
+
         if (deathFlashOverlay != null)
         {
             deathFlashOverlay.SetActive(true);
@@ -135,9 +144,30 @@ public class GameManager : MonoBehaviour
         if (currentState == GameState.Playing && !isGameOver)
         {
             survivalTime += Time.unscaledDeltaTime; 
+            
             if (timerHUDText != null) 
             {
-                timerHUDText.text = "Tiempo: " + survivalTime.ToString("F2") + "s";
+                timerHUDText.text = survivalTime.ToString("F2") + "s";
+                // Transición de color si es récord
+                if (survivalTime > bestTime && bestTime > 0)
+                    timerHUDText.color = new Color(1f, 0.5f, 0f); // Orange (#FF8000 aprox)
+                else
+                    timerHUDText.color = Color.white;
+            }
+
+            if (killsHUDText != null)
+            {
+                killsHUDText.text = "BAJAS: " + currentKills;
+            }
+
+            if (bestTimeHUDText != null)
+            {
+                bestTimeHUDText.text = "RECORD: " + bestTime.ToString("F2") + "s";
+                // Resaltar si estamos cerca del récord
+                if (bestTime > 0 && survivalTime > bestTime - 5f && survivalTime <= bestTime)
+                    bestTimeHUDText.color = Color.yellow;
+                else
+                    bestTimeHUDText.color = new Color(1f, 1f, 1f, 0.6f);
             }
         }
     }
@@ -205,6 +235,9 @@ public class GameManager : MonoBehaviour
         killsText = ui.killsText;
         newRecordBadge = ui.newRecordBadge;
         timerHUDText = ui.timerHUDText;
+        hudGroup = ui.hudGroup;
+        killsHUDText = ui.killsHUDText;
+        bestTimeHUDText = ui.bestTimeHUDText;
         retryButton = ui.retryButton;
         menuButton = ui.menuButton;
 
@@ -330,7 +363,14 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    public void AddKill() { currentKills++; }
+    public void AddKill() 
+    { 
+        currentKills++; 
+        if (killsHUDText != null && UIAnimationManager.Instance != null)
+        {
+            StartCoroutine(UIAnimationManager.Instance.PulseScale(killsHUDText.transform, 1.2f, 0.15f));
+        }
+    }
 
     private void ResetSession()
     {
@@ -339,6 +379,7 @@ public class GameManager : MonoBehaviour
         isGameOver = false;
         Time.timeScale = 1.0f;
         if (resultsPanel != null) resultsPanel.SetActive(false);
+        if (hudGroup != null) hudGroup.alpha = 1f;
     }
 
     public void RetryGame() { StartGame(currentMode); }
