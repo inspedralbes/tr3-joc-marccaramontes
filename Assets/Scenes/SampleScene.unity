@@ -1765,7 +1765,7 @@ MonoBehaviour:
   resultsPanel: {fileID: 1100000010}
   deathFlashOverlay: {fileID: 395532032}
   titleText: {fileID: 560755738}
-  winnerText: {fileID: 0}
+  winnerText: {fileID: 1100000043}
   p1TimeText: {fileID: 1100000023}
   killsText: {fileID: 74826161}
   timerHUDText: {fileID: 2019559251}
@@ -1785,7 +1785,6 @@ GameObject:
   - component: {fileID: 1100000006}
   - component: {fileID: 1100000007}
   - component: {fileID: 1100000013}
-  - component: {fileID: 1100000012}
   - component: {fileID: 1100000011}
   m_Layer: 5
   m_Name: PanelResultados
@@ -1820,29 +1819,6 @@ MonoBehaviour:
   m_ChildScaleWidth: 0
   m_ChildScaleHeight: 0
   m_ReverseArrangement: 0
---- !u!114 &1100000012
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1100000010}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ed00663efdbb95a449176fe3f538a96c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ResultsUIRegisterer
-  resultsPanel: {fileID: 0}
-  deathFlashOverlay: {fileID: 0}
-  titleText: {fileID: 0}
-  winnerText: {fileID: 0}
-  p1TimeText: {fileID: 0}
-  killsText: {fileID: 0}
-  timerHUDText: {fileID: 0}
-  hudGroup: {fileID: 0}
-  killsHUDText: {fileID: 0}
-  retryButton: {fileID: 0}
-  menuButton: {fileID: 0}
 --- !u!225 &1100000013
 CanvasGroup:
   m_ObjectHideFlags: 0

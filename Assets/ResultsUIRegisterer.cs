@@ -25,6 +25,12 @@ public class ResultsUIRegisterer : MonoBehaviour
 
     public void TryRegister()
     {
+        if (resultsPanel == null)
+        {
+            // Evitar registro de componentes duplicados o mal configurados
+            return;
+        }
+
         if (GameManager.Instance != null)
         {
             GameManager.Instance.RegisterResultsUI(this);

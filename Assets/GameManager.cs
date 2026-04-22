@@ -182,6 +182,8 @@ public class GameManager : MonoBehaviour
 
     public void RegisterResultsUI(ResultsUIRegisterer ui)
     {
+        if (ui == null || ui.resultsPanel == null) return;
+
         resultsPanel = ui.resultsPanel;
         if (ui.resultsPanel != null) resultsCanvasGroup = ui.resultsPanel.GetComponent<CanvasGroup>();
         deathFlashOverlay = ui.deathFlashOverlay;
@@ -287,7 +289,7 @@ public class GameManager : MonoBehaviour
         
         // 3.1 Asignación inmediata para evitar valores en cero visibles
         if (titleText != null) titleText.text = "PARTIDA FINALIZADA";
-        if (p1TimeText != null) p1TimeText.text = $"{p1Time:F2}s";
+        if (p1TimeText != null) p1TimeText.text = $"Resultado: {p1Time:F2}s";
         if (killsText != null) killsText.text = $"Bajas: {currentKills}";
         
         if (winnerText != null) winnerText.gameObject.SetActive(false);
