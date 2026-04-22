@@ -17,18 +17,11 @@ public class MenuController : MonoBehaviour
         }
     }
 
-    // Función para el modo multijugador por turnos
+    // Función para el modo multijugador online (antes local por turnos)
     public void PlayMultiplayer()
     {
-        Debug.Log("Intentando iniciar modo Multi...");
-        if (GameManager.Instance != null)
-        {
-            GameManager.Instance.StartGame(GameMode.Multiplayer);
-        }
-        else
-        {
-            Debug.LogError("No se encontró GameManager.Instance");
-        }
+        Debug.Log("Redirigiendo a Multijugador Online...");
+        PlayOnline();
     }
 
     public void PlayOnline()

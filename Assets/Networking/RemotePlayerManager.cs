@@ -16,12 +16,23 @@ public class RemotePlayerManager : MonoBehaviour
 
     public float lerpSpeed = 10f;
 
-    private void Start()
+    private void OnEnable()
     {
         if (NetworkManager.Instance != null)
         {
             NetworkManager.Instance.OnRemotePlayerMoved += UpdateRemotePlayer;
             NetworkManager.Instance.OnRemotePlayerJoined += SpawnRemotePlayer;
+            NetworkManager.Instance.OnRemotePlayerLeft += RemoveRemotePlayer;
+        }
+    }
+
+    private void OnDisable()
+    {
+        if (NetworkManager.Instance != null)
+        {
+            NetworkManager.Instance.OnRemotePlayerMoved -= UpdateRemotePlayer;
+            NetworkManager.Instance.OnRemotePlayerJoined -= SpawnRemotePlayer;
+            NetworkManager.Instance.OnRemotePlayerLeft -= RemoveRemotePlayer;
         }
     }
 
@@ -54,10 +65,21 @@ public class RemotePlayerManager : MonoBehaviour
         }
     }
 
+    private void RemoveRemotePlayer(string playerId)
+    {
+        if (remotePlayers.TryGetValue(playerId, out GhostData data))
+        {
+            Debug.Log($"[RemotePlayerManager] Removing ghost for {playerId}");
+            if (data.gameObject != null) Destroy(data.gameObject);
+            remotePlayers.Remove(playerId);
+        }
+    }
+
     private void Update()
     {
         foreach (var ghost in remotePlayers.Values)
         {
+            if (ghost.gameObject == null) continue;
             ghost.gameObject.transform.position = Vector3.Lerp(ghost.gameObject.transform.position, ghost.targetPosition, Time.deltaTime * lerpSpeed);
             ghost.gameObject.transform.rotation = Quaternion.Lerp(ghost.gameObject.transform.rotation, ghost.targetRotation, Time.deltaTime * lerpSpeed);
         }

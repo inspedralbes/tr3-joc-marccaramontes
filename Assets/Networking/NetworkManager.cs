@@ -140,6 +140,7 @@ public class NetworkManager : MonoBehaviour
 
     public event Action<string, Vector3, float> OnRemotePlayerMoved;
     public event Action<string, string> OnRemotePlayerJoined;
+    public event Action<string> OnRemotePlayerLeft;
     public event Action<string, Vector3, float> OnRemotePlayerShot;
     public event Action OnMatchStarted;
     public event Action<string, float> OnGameOver;
@@ -158,6 +159,10 @@ public class NetworkManager : MonoBehaviour
             case "player_joined":
                 var joinData = JsonUtility.FromJson<JoinData>(data);
                 OnRemotePlayerJoined?.Invoke(joinData.playerId, joinData.playerName);
+                break;
+            case "player_left":
+                var leftData = JsonUtility.FromJson<JoinData>(data); // Reutilizamos JoinData ya que tiene playerId
+                OnRemotePlayerLeft?.Invoke(leftData.playerId);
                 break;
             case "player_moved":
                 var moveData = JsonUtility.FromJson<MoveData>(data);
@@ -181,12 +186,28 @@ public class NetworkManager : MonoBehaviour
         }
     }
 
+    public void LeaveRoom()
+    {
+        if (string.IsNullOrEmpty(currentRoomId)) return;
+        
+        Debug.Log($"[NetworkManager] Saliendo de la sala {currentRoomId}...");
+        client.Emit("leave_room", new LeaveData { roomId = currentRoomId });
+        currentRoomId = "";
+        isHost = false;
+    }
+
     // --- DTOs ---
 
     [Serializable] public class RoomRequest { public string playerName; }
     [Serializable] public class JoinRequest { public string roomId; public string playerName; }
     [Serializable] public class RoomResponse { public string roomId; public bool success; }
     [Serializable] public class ResultRequest { public string roomId; public string playerName; public float survivalTime; }
+
+    [Serializable]
+    public class LeaveData
+    {
+        public string roomId;
+    }
 
     [Serializable]
     public class JoinSocketData

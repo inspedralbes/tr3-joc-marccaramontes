@@ -22,15 +22,31 @@ public class PlayerShooting : MonoBehaviour
         }
     }
 
-    void Start()
+    void OnEnable()
     {
-        if (!networkIdentity.isLocalPlayer)
+        if (networkIdentity != null && !networkIdentity.isLocalPlayer)
         {
             if (NetworkManager.Instance != null)
             {
                 NetworkManager.Instance.OnRemotePlayerShot += RemoteShoot;
             }
         }
+    }
+
+    void OnDisable()
+    {
+        if (networkIdentity != null && !networkIdentity.isLocalPlayer)
+        {
+            if (NetworkManager.Instance != null)
+            {
+                NetworkManager.Instance.OnRemotePlayerShot -= RemoteShoot;
+            }
+        }
+    }
+
+    void Start()
+    {
+        // El registro de eventos ahora se maneja en OnEnable/OnDisable
     }
 
     void Update()

@@ -342,7 +342,27 @@ public class GameManager : MonoBehaviour
     }
 
     public void RetryGame() { StartGame(currentMode); }
-    public void ReturnToMenu() { SceneManager.LoadScene("Menu"); }
+
+    public void ReturnToMenu() 
+    { 
+        StartCoroutine(ReturnToMenuRoutine());
+    }
+
+    private IEnumerator ReturnToMenuRoutine()
+    {
+        Debug.Log("<b>[GameManager]</b> Regresando al menú...");
+        
+        if (NetworkManager.Instance != null)
+        {
+            NetworkManager.Instance.LeaveRoom();
+        }
+
+        // Un pequeño respiro para asegurar el envío del paquete (opcional pero recomendado)
+        yield return new WaitForSecondsRealtime(0.1f);
+        
+        Time.timeScale = 1.0f;
+        SceneManager.LoadScene("Menu"); 
+    }
 
     [System.Serializable]
     public class DeathData { public string roomId; public float survivalTime; }
