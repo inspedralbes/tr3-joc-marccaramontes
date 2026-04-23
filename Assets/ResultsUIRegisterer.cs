@@ -10,6 +10,7 @@ public class ResultsUIRegisterer : MonoBehaviour
     public TextMeshProUGUI titleText;
     public TextMeshProUGUI winnerText;
     public TextMeshProUGUI p1TimeText;
+    public TextMeshProUGUI p2TimeText; // Nuevo: Texto para el rival
     public TextMeshProUGUI killsText;
     public TextMeshProUGUI timerHUDText; 
     public CanvasGroup hudGroup;        

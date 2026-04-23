@@ -187,6 +187,8 @@ public class NetworkManager : MonoBehaviour
                 break;
             case "DEATH":
                 var gameOverData = JsonUtility.FromJson<GameOverData>(payload);
+                if (GameManager.Instance != null)
+                    GameManager.Instance.RecordRivalDeath(gameOverData.playerId, gameOverData.survivalTime);
                 OnGameOver?.Invoke(gameOverData.playerId, gameOverData.survivalTime);
                 break;
         }
@@ -208,6 +210,7 @@ public class NetworkManager : MonoBehaviour
     [Serializable] public class JoinRequest { public string roomId; public string playerName; }
     [Serializable] public class RoomResponse { public string roomId; public bool success; }
     [Serializable] public class ResultRequest { public string roomId; public string playerName; public float survivalTime; }
+    [Serializable] public class StartMatchData { public string roomId; }
 
     [Serializable] public class LeaveData { public string roomId; }
     [Serializable] public class JoinSocketData { public string roomId; public string playerName; }

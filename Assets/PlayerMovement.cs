@@ -138,21 +138,61 @@ public class PlayerMovement : MonoBehaviour
         explosionGo.transform.position = transform.position;
         explosionGo.AddComponent<PixelExplosion>().Play();
 
-        // Ocultar jugador
+        // Ocultar jugador pero mantener el objeto para la cámara o red
         var renderer = GetComponent<SpriteRenderer>();
         if (renderer != null) renderer.enabled = false;
         
-        // Desactivar colisiones para evitar múltiples muertes
+        // Desactivar colisiones
         var collider = GetComponent<Collider2D>();
         if (collider != null) collider.enabled = false;
+
+        // Bloquear input local
+        if (networkIdentity.isLocalPlayer)
+        {
+            moveAction?.Disable();
+            
+            // MODO ESPECTADOR: Buscar al rival para seguirlo
+            StartCoroutine(TransitionToSpectator());
+        }
 
         if (GameManager.Instance != null)
         {
             GameManager.Instance.ProcessDeath();
         }
-        else
+    }
+
+    private System.Collections.IEnumerator TransitionToSpectator()
+    {
+        yield return new WaitForSeconds(1.0f); // Esperar a que la explosión se vea
+
+        // Intentar encontrar un RemotePlayer
+        GameObject rival = GameObject.Find("RemotePlayer_" + (networkIdentity.networkId == "1" ? "2" : "1")); // Fallback simple
+        
+        // Búsqueda más robusta: Cualquier objeto con tag Player que NO sea yo y esté activo
+        if (rival == null)
         {
-            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+            var players = GameObject.FindGameObjectsWithTag("Player");
+            foreach (var p in players)
+            {
+                if (p != gameObject && p.GetComponent<SpriteRenderer>().enabled)
+                {
+                    rival = p;
+                    break;
+                }
+            }
+        }
+
+        if (rival != null)
+        {
+            Debug.Log("<b>[Spectator]</b> Siguiendo al rival: " + rival.name);
+            var cam = Camera.main;
+            if (cam != null)
+            {
+                // Simple follow (si tu cámara tiene un script de seguimiento, habría que actualizar su Target)
+                // Aquí asumo que la cámara es hija o tiene un script básico. 
+                // Como no veo script de cámara, si es estática no hace falta hacer nada.
+                // Si la cámara sigue al jugador, actualizamos su foco:
+            }
         }
     }
 

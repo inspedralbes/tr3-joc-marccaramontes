@@ -22,14 +22,16 @@ class GameService {
         }
         this.rooms.get(roomId).add(ws);
 
-        console.log(`[GameService] Player ${playerName} joined room ${roomId}`);
+        const isHost = this.rooms.get(roomId).size === 1;
+
+        console.log(`[GameService] Player ${playerName} joined room ${roomId} (isHost: ${isHost})`);
         
         ws.send(JSON.stringify({
             type: 'ROOM_JOINED_CONFIRMED',
-            payload: { roomId }
+            payload: JSON.stringify({ roomId, isHost })
         }));
 
-        this.broadcastToRoom(ws, 'PLAYER_JOINED', { playerName, roomId });
+        this.broadcastToRoom(ws, 'PLAYER_JOINED', JSON.stringify({ playerName, roomId }));
     }
 
     handleDisconnect(ws) {
@@ -39,7 +41,7 @@ class GameService {
             if (this.rooms.get(currentRoomId).size === 0) {
                 this.rooms.delete(currentRoomId);
             } else {
-                this.broadcastToRoom(ws, 'PLAYER_LEFT', { playerName: currentPlayerName });
+                this.broadcastToRoom(ws, 'PLAYER_LEFT', JSON.stringify({ playerName: currentPlayerName }));
             }
         }
     }

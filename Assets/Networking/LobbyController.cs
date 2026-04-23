@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using UnityEngine.SceneManagement;
+using System.Collections;
 
 public class LobbyController : MonoBehaviour
 {
@@ -78,8 +79,8 @@ public class LobbyController : MonoBehaviour
             (response) => {
                 Debug.Log($"Sala creada: {response.roomId}");
                 NetworkManager.Instance.ConnectToSocket(response.roomId);
-                if (UIAnimationManager.Instance != null)
-                    StartCoroutine(UIAnimationManager.Instance.PulseScale(roomCodeText.transform, 1.2f, 0.5f));
+                if (UIAnimationManager.Instance != null && roomCodeText != null)
+                    StartCoroutine(UIAnimationManager.Instance.PulseScale(roomCodeText.transform, 1.1f, 1.0f)); // Más sutil para espera
             },
             (error) => {
                 SetStatus("Error al crear sala: " + error, true);
@@ -103,8 +104,8 @@ public class LobbyController : MonoBehaviour
             (response) => {
                 Debug.Log("Unido con éxito vía HTTP. Conectando Socket...");
                 NetworkManager.Instance.ConnectToSocket(response.roomId);
-                if (UIAnimationManager.Instance != null)
-                    StartCoroutine(UIAnimationManager.Instance.PulseScale(roomCodeText.transform, 1.2f, 0.5f));
+                if (UIAnimationManager.Instance != null && roomCodeText != null)
+                    StartCoroutine(UIAnimationManager.Instance.PulseScale(roomCodeText.transform, 1.1f, 1.0f));
             },
             (error) => {
                 SetStatus("Error al unirse: " + error, true);
@@ -126,12 +127,7 @@ public class LobbyController : MonoBehaviour
     {
         if (UIAnimationManager.Instance != null && mainPanelGroup != null && waitingPanelGroup != null)
         {
-            StartCoroutine(UIAnimationManager.Instance.FadeCanvasGroup(mainPanelGroup, 1, 0, 0.3f));
-            StartCoroutine(UIAnimationManager.Instance.FadeCanvasGroup(waitingPanelGroup, 0, 1, 0.3f));
-            mainPanelGroup.interactable = false;
-            mainPanelGroup.blocksRaycasts = false;
-            waitingPanelGroup.interactable = true;
-            waitingPanelGroup.blocksRaycasts = true;
+            StartCoroutine(TransitionPanels(mainPanelGroup, waitingPanelGroup));
         }
     }
 
@@ -139,18 +135,31 @@ public class LobbyController : MonoBehaviour
     {
         if (UIAnimationManager.Instance != null && mainPanelGroup != null && waitingPanelGroup != null)
         {
-            StartCoroutine(UIAnimationManager.Instance.FadeCanvasGroup(waitingPanelGroup, 1, 0, 0.3f));
-            StartCoroutine(UIAnimationManager.Instance.FadeCanvasGroup(mainPanelGroup, 0, 1, 0.3f));
-            waitingPanelGroup.interactable = false;
-            waitingPanelGroup.blocksRaycasts = false;
-            mainPanelGroup.interactable = true;
-            mainPanelGroup.blocksRaycasts = true;
+            StartCoroutine(TransitionPanels(waitingPanelGroup, mainPanelGroup));
         }
         else
         {
-            if (waitingPanelGroup != null) waitingPanelGroup.alpha = 0;
-            if (mainPanelGroup != null) mainPanelGroup.alpha = 1;
+            if (waitingPanelGroup != null) { waitingPanelGroup.alpha = 0; waitingPanelGroup.gameObject.SetActive(false); }
+            if (mainPanelGroup != null) { mainPanelGroup.alpha = 1; mainPanelGroup.gameObject.SetActive(true); }
         }
+    }
+
+    private IEnumerator TransitionPanels(CanvasGroup from, CanvasGroup to)
+    {
+        to.gameObject.SetActive(true);
+        to.alpha = 0;
+        to.interactable = true;
+        to.blocksRaycasts = true;
+
+        from.interactable = false;
+        from.blocksRaycasts = false;
+
+        // Iniciar desvanecimientos en paralelo
+        float duration = 0.3f;
+        StartCoroutine(UIAnimationManager.Instance.FadeCanvasGroup(from, 1, 0, duration));
+        yield return UIAnimationManager.Instance.FadeCanvasGroup(to, 0, 1, duration);
+
+        from.gameObject.SetActive(false); // "Saca de escena" el panel anterior
     }
 
     private void SavePlayerName(string name)
@@ -162,7 +171,10 @@ public class LobbyController : MonoBehaviour
 
     private void OnStartMatch()
     {
-        NetworkManager.Instance.Emit("start_match", NetworkManager.Instance.currentRoomId);
+        Debug.Log($"<b>[Lobby]</b> Emitiendo start_match para sala: {NetworkManager.Instance.currentRoomId}");
+        // Envolver en un objeto para que el servidor lo reciba como JSON
+        var startData = new NetworkManager.StartMatchData { roomId = NetworkManager.Instance.currentRoomId };
+        NetworkManager.Instance.Emit("start_match", startData);
     }
 
     private void HandleMatchStarted()
@@ -178,19 +190,28 @@ public class LobbyController : MonoBehaviour
         createBtn.interactable = hasName;
         joinBtn.interactable = hasName && !string.IsNullOrEmpty(roomInputField.text.Trim());
 
-        if (waitingPanelGroup != null && waitingPanelGroup.alpha > 0.5f)
+        if (waitingPanelGroup != null && waitingPanelGroup.gameObject.activeSelf)
         {
             roomCodeText.text = "Código: " + NetworkManager.Instance.currentRoomId;
             
             if (NetworkManager.Instance.isHost)
             {
-                if (statusText.text.Contains("Esperando a que el Host")) SetStatus("Esperando jugadores...", false);
-                startMatchBtn.gameObject.SetActive(true);
+                if (!startMatchBtn.gameObject.activeSelf)
+                {
+                    Debug.Log("<b>[Lobby]</b> Soy Host. Activando botón de inicio.");
+                    startMatchBtn.gameObject.SetActive(true);
+                }
+                
+                if (statusText.text.Contains("Esperando a que el Host")) 
+                    SetStatus("Esperando jugadores...", false);
             }
             else
             {
-                if (statusText.text.Contains("Esperando jugadores")) SetStatus("Esperando a que el Host inicie...", false);
-                startMatchBtn.gameObject.SetActive(false);
+                if (startMatchBtn.gameObject.activeSelf)
+                    startMatchBtn.gameObject.SetActive(false);
+
+                if (statusText.text.Contains("Esperando jugadores")) 
+                    SetStatus("Esperando a que el Host inicie...", false);
             }
         }
     }

@@ -26,7 +26,11 @@ async function testIntegration() {
             const msg = JSON.parse(data);
             console.log('WS Received:', msg);
             if (msg.type === 'ROOM_JOINED_CONFIRMED') {
-                console.log('Integration Test SUCCESSFUL');
+                if (typeof msg.payload === 'string') {
+                    console.log('Integration Test SUCCESSFUL: Payload is a string');
+                } else {
+                    console.error('Integration Test FAILED: Payload is NOT a string', typeof msg.payload);
+                }
                 ws.close();
             }
         });

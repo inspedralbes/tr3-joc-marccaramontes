@@ -342,18 +342,16 @@ MonoBehaviour:
   p1Time: 0
   p2Time: 0
   currentKills: 0
-  bestTime: 0
-  isNewRecord: 0
   resultsPanel: {fileID: 0}
   resultsCanvasGroup: {fileID: 0}
   deathFlashOverlay: {fileID: 0}
   p1TimeText: {fileID: 0}
-  p2TimeText: {fileID: 0}
+  titleText: {fileID: 0}
   winnerText: {fileID: 0}
-  bestTimeText: {fileID: 0}
   killsText: {fileID: 0}
-  newRecordBadge: {fileID: 0}
   timerHUDText: {fileID: 0}
+  hudGroup: {fileID: 0}
+  killsHUDText: {fileID: 0}
   retryButton: {fileID: 0}
   menuButton: {fileID: 0}
 --- !u!1 &188936178
@@ -671,8 +669,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c12ef2500e25d934d8bf825f3b51d252, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NetworkManager
-  serverWsUrl: ws://localhost:3000/socket.io/?EIO=4&transport=websocket
-  serverHttpUrl: http://localhost:3000/api
+  serverWsUrl: ws://127.0.0.1:3000/ws
+  serverHttpUrl: http://127.0.0.1:3000/api
   currentRoomId: 
   isHost: 0
   localPlayerId: 

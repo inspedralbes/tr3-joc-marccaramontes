@@ -59,6 +59,7 @@ public class SceneSetupHelper : Editor
         registerer.titleText = panelObj.transform.Find("TitleText")?.GetComponent<TextMeshProUGUI>();
         registerer.winnerText = panelObj.transform.Find("WinnerText")?.GetComponent<TextMeshProUGUI>();
         registerer.p1TimeText = panelObj.transform.Find("P1TimeText")?.GetComponent<TextMeshProUGUI>();
+        registerer.p2TimeText = panelObj.transform.Find("P2TimeText")?.GetComponent<TextMeshProUGUI>(); // Nuevo
         registerer.killsText = panelObj.transform.Find("KillsText")?.GetComponent<TextMeshProUGUI>();
         
         registerer.retryButton = panelObj.transform.Find("RetryButton")?.GetComponent<Button>();
@@ -169,7 +170,19 @@ public class SceneSetupHelper : Editor
         {
             lobby.waitingPanelGroup = waitingPanel.GetComponent<CanvasGroup>() ?? waitingPanel.AddComponent<CanvasGroup>();
             Image pImg = waitingPanel.GetComponent<Image>();
-            if (pImg != null) pImg.color = new Color(0, 0, 0, 0.4f);
+            if (pImg == null) pImg = waitingPanel.AddComponent<Image>();
+            pImg.color = new Color(0, 0, 0, 0.8f); // Fondo más oscuro para el panel de espera
+
+            // Centrar el panel de espera y ajustar tamaño
+            RectTransform waitRect = waitingPanel.GetComponent<RectTransform>();
+            waitRect.anchorMin = new Vector2(0.5f, 0.5f);
+            waitRect.anchorMax = new Vector2(0.5f, 0.5f);
+            waitRect.pivot = new Vector2(0.5f, 0.5f);
+            waitRect.anchoredPosition = Vector2.zero;
+            waitRect.sizeDelta = new Vector2(500, 350);
+
+            // Asegurar que el objeto esté activo para que el script pueda encontrar sus hijos
+            waitingPanel.SetActive(true);
         }
 
         // 7. VINCULAR BOTONES Y ESTILO INFERNAL
@@ -180,23 +193,36 @@ public class SceneSetupHelper : Editor
         
         if (waitingPanel != null)
         {
+            foreach (var btn in waitingPanel.GetComponentsInChildren<Button>(true))
+            {
+                SetupInfernalButton(btn.gameObject, theme);
+            }
+
             Button backToMain = waitingPanel.GetComponentsInChildren<Button>(true).FirstOrDefault(b => b.name.Contains("Back") || b.name.Contains("Return"));
             if (backToMain != null) lobby.backToMainBtn = backToMain;
-            SetupInfernalButton(backToMain?.gameObject, theme);
         }
 
         // 8. ESTILIZAR TEXTOS
-        foreach (var text in Object.FindObjectsByType<TextMeshProUGUI>(FindObjectsSortMode.None))
+        var allTexts = Resources.FindObjectsOfTypeAll<TextMeshProUGUI>().Where(t => t.gameObject.scene == scene);
+        foreach (var text in allTexts)
         {
             if (theme != null) text.color = theme.bloodRed;
+            text.alignment = TextAlignmentOptions.Center;
         }
 
         // 9. VINCULAR REFERENCIAS AL LOBBY MANAGER
-        lobby.statusText = GameObject.Find("StatusText")?.GetComponent<TextMeshProUGUI>();
-        lobby.roomCodeText = GameObject.Find("RoomCodeText")?.GetComponent<TextMeshProUGUI>();
-        lobby.nameInputField = GameObject.Find("NameInput")?.GetComponent<TMP_InputField>();
-        lobby.roomInputField = GameObject.Find("RoomInput")?.GetComponent<TMP_InputField>();
+        var allObjects = Resources.FindObjectsOfTypeAll<GameObject>().Where(go => go.scene == scene).ToList();
 
+        lobby.statusText = allObjects.FirstOrDefault(go => go.name == "StatusText")?.GetComponent<TextMeshProUGUI>();
+        lobby.roomCodeText = allObjects.FirstOrDefault(go => go.name == "RoomCodeText")?.GetComponent<TextMeshProUGUI>();
+        lobby.nameInputField = allObjects.FirstOrDefault(go => go.name == "NameInput")?.GetComponent<TMP_InputField>();
+        lobby.roomInputField = allObjects.FirstOrDefault(go => go.name == "RoomInput")?.GetComponent<TMP_InputField>();
+
+        // Forzar el estado inicial: Main activo, Waiting oculto (por alpha)
+        if (mainPanel != null) { mainPanel.SetActive(true); lobby.mainPanelGroup.alpha = 1; }
+        if (waitingPanel != null) { waitingPanel.SetActive(true); lobby.waitingPanelGroup.alpha = 0; }
+
+        // Forzar guardado para persistir las referencias en el Inspector
         EditorUtility.SetDirty(lobby);
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);

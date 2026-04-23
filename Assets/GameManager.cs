@@ -19,6 +19,7 @@ public class GameManager : MonoBehaviour
     public float p1Time;
     public float p2Time;
     public int currentKills;
+    private System.Collections.Generic.Dictionary<string, float> playerDeathTimes = new System.Collections.Generic.Dictionary<string, float>();
 
     [Header("Referencias UI")]
     public GameObject resultsPanel;
@@ -26,10 +27,12 @@ public class GameManager : MonoBehaviour
     public GameObject deathFlashOverlay; 
     
     public TextMeshProUGUI p1TimeText;
+    public TextMeshProUGUI p2TimeText; // Referencia para el rival
     public TextMeshProUGUI titleText;
     public TextMeshProUGUI winnerText;
     public TextMeshProUGUI killsText;
     public TextMeshProUGUI timerHUDText; 
+    public TextMeshProUGUI rivalTimerHUDText; // Nuevo: Tiempo del rival en HUD
     public CanvasGroup hudGroup;         
     public TextMeshProUGUI killsHUDText; 
     public Button retryButton;          
@@ -43,6 +46,7 @@ public class GameManager : MonoBehaviour
         {
             Instance = this;
             DontDestroyOnLoad(gameObject);
+            playerDeathTimes.Clear();
         }
         else
         {
@@ -150,34 +154,66 @@ public class GameManager : MonoBehaviour
         currentState = GameState.Playing;
         p1Time = p2Time = survivalTime = 0;
         isGameOver = false;
+        playerDeathTimes.Clear();
         SceneManager.LoadScene("SampleScene");
     }
 
     public void ProcessDeath()
     {
         if (currentState != GameState.Playing || isGameOver) return;
-        isGameOver = true;
         
         if (currentMode == GameMode.Online)
         {
-            // Requisito: Enviar resultados vía HTTP (UnityWebRequest)
+            // En modo Online, mi muerte no termina la partida globalmente
+            p1Time = survivalTime;
+            playerDeathTimes[NetworkManager.Instance.localPlayerId] = survivalTime;
+
+            // Notificar al servidor y a otros
             NetworkManager.Instance.ReportResults(survivalTime);
-            
-            // Sincronizar fin de partida vía Socket para otros jugadores
-            NetworkManager.Instance.Emit("player_death", new DeathData { roomId = NetworkManager.Instance.currentRoomId, survivalTime = survivalTime });
+            NetworkManager.Instance.Emit("player_death", new DeathData { 
+                roomId = NetworkManager.Instance.currentRoomId, 
+                survivalTime = survivalTime 
+            });
+
+            // Si soy el último en morir, disparar fin de partida
+            CheckAllPlayersDead();
         }
         else 
         {
+            isGameOver = true;
             p1Time = survivalTime;
             StartCoroutine(DeathSequenceCoroutine());
         }
     }
 
-    private void HandleOnlineGameOver(string winnerId, float time)
+    public void RecordRivalDeath(string playerId, float time)
     {
-        isGameOver = true;
-        p1Time = time;
-        StartCoroutine(DeathSequenceCoroutine());
+        if (!playerDeathTimes.ContainsKey(playerId))
+        {
+            playerDeathTimes[playerId] = time;
+            p2Time = time; // Para simplificar 1vs1
+            
+            if (timerHUDText != null) 
+                timerHUDText.text = "¡RIVAL HA CAÍDO!";
+
+            CheckAllPlayersDead();
+        }
+    }
+
+    private void CheckAllPlayersDead()
+    {
+        // En modo 1vs1 esperamos a tener 2 tiempos registrados
+        // O si estamos solos (desconexión), terminar también
+        if (playerDeathTimes.Count >= 2)
+        {
+            isGameOver = true;
+            StartCoroutine(DeathSequenceCoroutine());
+        }
+    }
+
+    private void HandleOnlineGameOver(string playerId, float time)
+    {
+        RecordRivalDeath(playerId, time);
     }
 
     public void RegisterResultsUI(ResultsUIRegisterer ui)
@@ -189,6 +225,7 @@ public class GameManager : MonoBehaviour
         deathFlashOverlay = ui.deathFlashOverlay;
         
         p1TimeText = ui.p1TimeText;
+        p2TimeText = ui.p2TimeText; // Nuevo: Rival
         titleText = ui.titleText;
         winnerText = ui.winnerText;
         killsText = ui.killsText;
@@ -260,6 +297,7 @@ public class GameManager : MonoBehaviour
                 
                 // Re-vincular componentes hijos por nombre
                 p1TimeText = go.transform.Find("P1TimeText")?.GetComponent<TextMeshProUGUI>();
+                p2TimeText = go.transform.Find("P2TimeText")?.GetComponent<TextMeshProUGUI>();
                 titleText = go.transform.Find("TitleText")?.GetComponent<TextMeshProUGUI>();
                 winnerText = go.transform.Find("WinnerText")?.GetComponent<TextMeshProUGUI>();
                 killsText = go.transform.Find("KillsText")?.GetComponent<TextMeshProUGUI>();
@@ -287,13 +325,35 @@ public class GameManager : MonoBehaviour
     {
         resultsPanel.SetActive(true);
         
-        // 3.1 Asignación inmediata para evitar valores en cero visibles
-        if (titleText != null) titleText.text = "PARTIDA FINALIZADA";
-        if (p1TimeText != null) p1TimeText.text = $"Resultado: {p1Time:F2}s";
+        // Determinar ganador si es Online
+        if (currentMode == GameMode.Online)
+        {
+            bool victory = p1Time >= p2Time;
+            if (titleText != null) 
+            {
+                titleText.text = victory ? "¡VICTORIA!" : "¡DERROTA!";
+                titleText.color = victory ? Color.green : Color.red;
+            }
+            if (winnerText != null) 
+            {
+                winnerText.gameObject.SetActive(true);
+                winnerText.text = victory ? "Has sobrevivido más que tu rival" : "Tu rival te ha superado";
+            }
+        }
+        else
+        {
+            if (titleText != null) { titleText.text = "PARTIDA FINALIZADA"; titleText.color = Color.white; }
+            if (winnerText != null) winnerText.gameObject.SetActive(false);
+        }
+
+        if (p1TimeText != null) p1TimeText.text = $"Tú: {p1Time:F2}s";
+        if (p2TimeText != null) 
+        {
+            p2TimeText.gameObject.SetActive(currentMode == GameMode.Online);
+            p2TimeText.text = $"Rival: {p2Time:F2}s";
+        }
         if (killsText != null) killsText.text = $"Bajas: {currentKills}";
         
-        if (winnerText != null) winnerText.gameObject.SetActive(false);
-
         Debug.Log("<b>[GameManager]</b> PanelResultados activado.");
 
         if (UIAnimationManager.Instance == null)
@@ -306,22 +366,12 @@ public class GameManager : MonoBehaviour
                 yield return UIAnimationManager.Instance.FadeCanvasGroup(resultsCanvasGroup, 0f, 1f, 0.5f);
         }
 
-        // 3.2 Animaciones en paralelo
+        // Animaciones
         if (UIAnimationManager.Instance != null)
         {
-            if (killsText != null)
-            {
-                StartCoroutine(UIAnimationManager.Instance.CountText(killsText, 0, currentKills, 0.5f, "Bajas: ", "", "F0"));
-                StartCoroutine(UIAnimationManager.Instance.PulseScale(killsText.transform, 1.1f, 0.5f));
-            }
-
-            if (p1TimeText != null)
-            {
-                StartCoroutine(UIAnimationManager.Instance.CountText(p1TimeText, 0, p1Time, 0.8f, "Resultado: ", "s"));
-                StartCoroutine(UIAnimationManager.Instance.PulseScale(p1TimeText.transform, 1.1f, 0.8f));
-            }
-            
-            yield return new WaitForSecondsRealtime(0.8f);
+            if (p1TimeText != null) StartCoroutine(UIAnimationManager.Instance.PulseScale(p1TimeText.transform, 1.1f, 0.5f));
+            if (p2TimeText != null && currentMode == GameMode.Online) StartCoroutine(UIAnimationManager.Instance.PulseScale(p2TimeText.transform, 1.1f, 0.5f));
+            yield return new WaitForSecondsRealtime(0.5f);
         }
     }
 

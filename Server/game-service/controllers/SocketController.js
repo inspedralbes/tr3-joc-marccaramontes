@@ -20,7 +20,8 @@ class SocketController {
                     this.gameService.broadcastToRoom(ws, type, payload);
                     break;
                 case 'START_MATCH':
-                    this.gameService.broadcastToRoom(ws, type, payload, true);
+                case 'start_match':
+                    this.gameService.broadcastToRoom(ws, 'START_MATCH', payload, true);
                     break;
                 case 'LEAVE_ROOM':
                     this.gameService.handleDisconnect(ws);
