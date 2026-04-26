@@ -27,17 +27,19 @@ public class UIAnimationManager : MonoBehaviour
     /// </summary>
     public IEnumerator FadeCanvasGroup(CanvasGroup group, float start, float end, float duration)
     {
+        if (group == null) yield break;
         float elapsed = 0f;
         group.alpha = start;
 
         while (elapsed < duration)
         {
+            if (group == null) yield break;
             elapsed += Time.unscaledDeltaTime;
             group.alpha = Mathf.Lerp(start, end, elapsed / duration);
             yield return null;
         }
 
-        group.alpha = end;
+        if (group != null) group.alpha = end;
     }
 
     /// <summary>
@@ -45,17 +47,19 @@ public class UIAnimationManager : MonoBehaviour
     /// </summary>
     public IEnumerator CountText(TextMeshProUGUI textElement, float start, float end, float duration, string prefix = "", string suffix = "", string format = "F2")
     {
+        if (textElement == null) yield break;
         float elapsed = 0f;
         
         while (elapsed < duration)
         {
+            if (textElement == null) yield break;
             elapsed += Time.unscaledDeltaTime;
             float current = Mathf.Lerp(start, end, elapsed / duration);
             textElement.text = $"{prefix}{current.ToString(format)}{suffix}";
             yield return null;
         }
 
-        textElement.text = $"{prefix}{end.ToString(format)}{suffix}";
+        if (textElement != null) textElement.text = $"{prefix}{end.ToString(format)}{suffix}";
     }
 
     /// <summary>
@@ -63,6 +67,7 @@ public class UIAnimationManager : MonoBehaviour
     /// </summary>
     public IEnumerator PulseScale(Transform target, float scaleAmount, float duration)
     {
+        if (target == null) yield break;
         Vector3 originalScale = Vector3.one;
         Vector3 targetScale = originalScale * scaleAmount;
         float halfDuration = duration / 2f;
@@ -71,6 +76,7 @@ public class UIAnimationManager : MonoBehaviour
         float elapsed = 0f;
         while (elapsed < halfDuration)
         {
+            if (target == null) yield break;
             elapsed += Time.unscaledDeltaTime;
             target.localScale = Vector3.Lerp(originalScale, targetScale, elapsed / halfDuration);
             yield return null;
@@ -80,11 +86,12 @@ public class UIAnimationManager : MonoBehaviour
         elapsed = 0f;
         while (elapsed < halfDuration)
         {
+            if (target == null) yield break;
             elapsed += Time.unscaledDeltaTime;
             target.localScale = Vector3.Lerp(targetScale, originalScale, elapsed / halfDuration);
             yield return null;
         }
 
-        target.localScale = originalScale;
+        if (target != null) target.localScale = originalScale;
     }
 }

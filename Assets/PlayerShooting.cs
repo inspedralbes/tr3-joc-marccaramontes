@@ -19,6 +19,7 @@ public class PlayerShooting : MonoBehaviour
         if (playerInput != null)
         {
             attackAction = playerInput.actions["Attack"];
+            attackAction?.Enable();
         }
     }
 
@@ -74,6 +75,16 @@ public class PlayerShooting : MonoBehaviour
         }
     }
 
+    private int bulletColorIndex = 0;
+    private Color[] neonColors = new Color[] {
+        new Color(1f, 0f, 0f),    // Rojo
+        new Color(0f, 1f, 0f),    // Verde
+        new Color(0f, 0.5f, 1f),  // Azul
+        new Color(1f, 1f, 0f),    // Amarillo
+        new Color(1f, 0f, 1f),    // Magenta
+        new Color(0f, 1f, 1f)     // Cian
+    };
+
     void Shoot()
     {
         if (bulletPrefab == null) return;
@@ -96,7 +107,21 @@ public class PlayerShooting : MonoBehaviour
         float angle = Mathf.Atan2(shootDirection.y, shootDirection.x) * Mathf.Rad2Deg;
         Quaternion rotation = Quaternion.AngleAxis(angle - 90f, Vector3.forward);
 
-        Instantiate(bulletPrefab, transform.position, rotation);
+        GameObject bullet = Instantiate(bulletPrefab, transform.position, rotation);
+        
+        // Aplicar color neon dinámico
+        SpriteRenderer bulletRenderer = bullet.GetComponent<SpriteRenderer>();
+        if (bulletRenderer != null)
+        {
+            bulletRenderer.material = new Material(Shader.Find("Custom/SpriteOutline"));
+            Color baseColor = neonColors[bulletColorIndex];
+            bulletRenderer.material.SetColor("_OutlineColor", baseColor * 15f); // Brillo neon intenso
+            bulletRenderer.material.SetFloat("_OutlineWidth", 3.0f);
+            bulletRenderer.color = baseColor; // Color interior
+            
+            // Ciclar color para el próximo disparo
+            bulletColorIndex = (bulletColorIndex + 1) % neonColors.Length;
+        }
 
         // Notificar red
         if (NetworkManager.Instance != null && NetworkManager.Instance.currentRoomId != "")

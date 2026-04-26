@@ -14,6 +14,7 @@ public class GameManager : MonoBehaviour
     public GameMode currentMode = GameMode.Solo;
     public TurnState currentTurn = TurnState.Player1;
     public GameState currentState = GameState.Menu;
+    public float difficultyMultiplier = 1.0f;
 
     [Header("Resultados")]
     public float p1Time;
@@ -120,6 +121,7 @@ public class GameManager : MonoBehaviour
         if (currentState == GameState.Playing && !isGameOver)
         {
             survivalTime += Time.unscaledDeltaTime; 
+            difficultyMultiplier += Time.unscaledDeltaTime * 0.01f; // Aumento gradual (1% por segundo)
             
             if (timerHUDText != null) 
             {
@@ -386,8 +388,10 @@ public class GameManager : MonoBehaviour
 
     private void ResetSession()
     {
+        StopAllCoroutines();
         survivalTime = 0;
         currentKills = 0;
+        difficultyMultiplier = 1.0f;
         isGameOver = false;
         Time.timeScale = 1.0f;
         if (resultsPanel != null) resultsPanel.SetActive(false);

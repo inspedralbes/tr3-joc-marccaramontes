@@ -16,6 +16,8 @@ public class PlayerMovement : MonoBehaviour
     private Rigidbody2D rb;
     private Vector2 movement;
     private NetworkIdentity networkIdentity;
+
+    public Vector2 Velocity => movement.normalized * speed;
     
     private PlayerInput playerInput;
     private InputAction moveAction;
@@ -30,6 +32,7 @@ public class PlayerMovement : MonoBehaviour
         if (playerInput != null)
         {
             moveAction = playerInput.actions["Move"];
+            moveAction?.Enable();
             if (moveAction == null) Debug.LogWarning("<color=red><b>[PlayerMovement]</b> Acción 'Move' no encontrada en PlayerInput. Revisa el archivo de acciones.</color>");
         }
         // Eliminado aviso de fallback para limpiar consola
@@ -62,6 +65,16 @@ public class PlayerMovement : MonoBehaviour
 
     void SetupPlatform()
     {
+        // Aplicar material de contorno neon
+        var renderer = GetComponent<SpriteRenderer>();
+        if (renderer != null)
+        {
+            renderer.material = new Material(Shader.Find("Custom/SpriteOutline"));
+            renderer.material.SetColor("_OutlineColor", new Color(1f * 15f, 0f, 0f, 1f)); // Rojo Neon Ultra
+            renderer.material.SetFloat("_OutlineWidth", 2.5f);
+            renderer.color = new Color(1f, 0.2f, 0.2f, 1f); // Interior Rojo normal
+        }
+
         if (platformCenter == null)
         {
             GameObject platformObj = GameObject.FindGameObjectWithTag("Platform");

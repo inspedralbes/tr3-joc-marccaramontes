@@ -8,12 +8,12 @@ The system SHALL spawn enemies at random positions within a configurable radial 
 - **THEN** a new instance of the `Enemy.prefab` is created at a random angle and distance between `minSpawnRadius` and `maxSpawnRadius` from the `spawnCenter`
 
 ### Requirement: Enemy Movement
-Active enemies SHALL move towards the player with inertia and turning penalties. They SHALL accelerate when moving in a straight line and decelerate when forced to make sharp turns.
+Active enemies SHALL move towards their target with inertia and turning penalties. They SHALL accelerate when moving in a straight line and decelerate when forced to make sharp turns. Their final speed SHALL be influenced by a global difficulty multiplier.
 
-#### Scenario: Follow Player with Inertia
-- **WHEN** the `Enemy` script is active and a player object is found
-- **THEN** the enemy adjusts its direction towards the player gradually based on its `turnSpeed`
-- **THEN** its current velocity increases when the angle to the player is small, and decreases when the angle is large
+#### Scenario: Follow Target with Multiplier
+- **WHEN** the `Enemy` script is active and a target (player or predicted point) is found
+- **THEN** the enemy adjusts its direction towards the target gradually based on its `turnSpeed`
+- **THEN** its current velocity is multiplied by the global `difficultyMultiplier` from the `GameManager`
 
 ### Requirement: Player Collision
 The system SHALL detect when an enemy makes contact with the player and trigger the player's death sequence.

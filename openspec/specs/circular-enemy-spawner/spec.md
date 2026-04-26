@@ -15,8 +15,8 @@ El sistema SHALL dibujar Gizmos en la vista de Escena de Unity que representen v
 - **THEN** se dibujan dos círculos de alambre (wire spheres) correspondientes a `minRadius` y `maxRadius`
 
 ### Requirement: Control de Estado de Juego
-El sistema SHALL detener la generación de enemigos cuando el juego haya terminado.
+El sistema SHALL detener la generación de enemigos cuando el juego haya terminado o cuando se haya alcanzado el límite de enemigos de la oleada actual.
 
-#### Scenario: Parada por Game Over
-- **WHEN** `GameManager.Instance.isGameOver` es verdadero
-- **THEN** el método `Update` del spawner no debe ejecutar la lógica de instanciación ni descontar tiempo para el siguiente spawn
+#### Scenario: Parada por Límite de Oleada
+- **WHEN** El número de enemigos instanciados en la oleada actual alcanza el máximo definido
+- **THEN** el sistema SHALL entrar en estado `WaitingForClear` y dejar de instanciar nuevos enemigos hasta que la oleada finalice
