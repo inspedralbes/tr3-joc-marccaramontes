@@ -165,6 +165,7 @@ public class LobbyController : MonoBehaviour
     private void SavePlayerName(string name)
     {
         NetworkManager.Instance.localPlayerName = name;
+        NetworkManager.Instance.localPlayerId = name; // Vinculación de identidad
         PlayerPrefs.SetString("PlayerName", name);
         PlayerPrefs.Save();
     }

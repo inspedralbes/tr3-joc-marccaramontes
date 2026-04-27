@@ -9,6 +9,7 @@ public class GameManager : MonoBehaviour
     private float survivalTime;
     private bool isGameOver;
     public bool IsGameOver => isGameOver;
+    private bool matchEndedForLocal; // Detener timer localmente
 
     [Header("Estado de Juego")]
     public GameMode currentMode = GameMode.Solo;
@@ -118,7 +119,7 @@ public class GameManager : MonoBehaviour
 
     void Update()
     {
-        if (currentState == GameState.Playing && !isGameOver)
+        if (currentState == GameState.Playing && !isGameOver && !matchEndedForLocal)
         {
             survivalTime += Time.unscaledDeltaTime; 
             difficultyMultiplier += Time.unscaledDeltaTime * 0.01f; // Aumento gradual (1% por segundo)
@@ -168,8 +169,15 @@ public class GameManager : MonoBehaviour
         if (currentMode == GameMode.Online)
         {
             // En modo Online, mi muerte no termina la partida globalmente
+            matchEndedForLocal = true;
             p1Time = survivalTime;
             playerDeathTimes[NetworkManager.Instance.localPlayerId] = survivalTime;
+
+            if (timerHUDText != null) 
+            {
+                timerHUDText.text = "ESPERANDO AL RIVAL...";
+                timerHUDText.color = new Color(1, 1, 1, 0.5f);
+            }
 
             // Notificar al servidor y a otros
             NetworkManager.Instance.ReportResults(survivalTime);
@@ -423,5 +431,5 @@ public class GameManager : MonoBehaviour
     }
 
     [System.Serializable]
-    public class DeathData { public string roomId; public float survivalTime; }
+    public class DeathData { public string roomId; public string playerId; public float survivalTime; }
 }

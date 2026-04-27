@@ -35,27 +35,14 @@ public class PlayerMovement : MonoBehaviour
             moveAction?.Enable();
             if (moveAction == null) Debug.LogWarning("<color=red><b>[PlayerMovement]</b> Acción 'Move' no encontrada en PlayerInput. Revisa el archivo de acciones.</color>");
         }
-        // Eliminado aviso de fallback para limpiar consola
 
-        // Auto-asignación de autoridad local si no hay red activa
-        bool isNetworkActive = NetworkManager.Instance != null && !string.IsNullOrEmpty(NetworkManager.Instance.currentRoomId);
+        // ASUNCIÓN POR DEFECTO: Soy el jugador local. 
+        // El RemotePlayerManager se encargará de poner esto a false para los fantasmas.
+        networkIdentity.isLocalPlayer = true;
+        networkIdentity.hasAuthority = true;
         
-        if (!isNetworkActive)
-        {
-            networkIdentity.isLocalPlayer = true;
-            networkIdentity.hasAuthority = true;
-        }
-        
-        if (networkIdentity.isLocalPlayer)
-        {
-            gameObject.name = "LocalPlayer";
-            gameObject.tag = "Player";
-        }
-        else
-        {
-            gameObject.name = "RemotePlayer_" + networkIdentity.networkId;
-            if (rb != null) rb.bodyType = RigidbodyType2D.Kinematic;
-        }
+        gameObject.name = "LocalPlayer";
+        gameObject.tag = "Player";
     }
 
     void Start()

@@ -41,11 +41,21 @@ public class RemotePlayerManager : MonoBehaviour
         if (string.IsNullOrEmpty(playerId) || remotePlayers.ContainsKey(playerId)) return;
         
         // Don't spawn ghost for local player
-        if (NetworkManager.Instance != null && playerId == NetworkManager.Instance.localPlayerName) return;
+        if (NetworkManager.Instance != null && playerId == NetworkManager.Instance.localPlayerId) return;
 
         GameObject ghostGo = Instantiate(playerPrefab, Vector3.zero, Quaternion.identity);
+        
+        // Configurar identidad como remota
         NetworkIdentity id = ghostGo.GetComponent<NetworkIdentity>();
-        id.Setup(playerId, false, false);
+        if (id != null)
+        {
+            id.Setup(playerId, false, false);
+        }
+
+        // Forzar nombre y estado cinemático para evitar conflictos de física
+        ghostGo.name = "RemotePlayer_" + playerId;
+        Rigidbody2D rb = ghostGo.GetComponent<Rigidbody2D>();
+        if (rb != null) rb.bodyType = RigidbodyType2D.Kinematic;
         
         remotePlayers.Add(playerId, new GhostData { 
             gameObject = ghostGo, 
