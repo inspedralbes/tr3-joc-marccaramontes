@@ -156,6 +156,7 @@ public class GameManager : MonoBehaviour
         currentState = GameState.Playing;
         p1Time = p2Time = survivalTime = 0;
         isGameOver = false;
+        Time.timeScale = 1.0f; // Asegurar que el juego no esté pausado
         playerDeathTimes.Clear();
         SceneManager.LoadScene("SampleScene");
     }

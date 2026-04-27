@@ -122,9 +122,8 @@ public class PlayerMovement : MonoBehaviour
             lastNetworkSendTime = Time.time;
             if (NetworkManager.Instance != null)
             {
-                NetworkManager.Instance.Emit("update_position", new PositionUpdate
+                NetworkManager.Instance.Emit("MOVE", new PositionUpdate
                 {
-                    roomId = NetworkManager.Instance.currentRoomId,
                     x = transform.position.x,
                     y = transform.position.y,
                     rotation = transform.rotation.eulerAngles.z
@@ -212,7 +211,6 @@ public class PlayerMovement : MonoBehaviour
     [System.Serializable]
     public class PositionUpdate
     {
-        public string roomId;
         public float x;
         public float y;
         public float rotation;

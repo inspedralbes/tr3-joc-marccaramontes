@@ -52,7 +52,6 @@ public class NetworkManager : MonoBehaviour
     private IEnumerator PostRequestRoutine<T>(string endpoint, object data, Action<T> onSuccess, Action<string> onError)
     {
         string json = JsonUtility.ToJson(data);
-        // El endpoint ya debe empezar por / (ej: /rooms/create)
         string url = $"{serverHttpUrl}{endpoint}";
         
         using (UnityWebRequest request = new UnityWebRequest(url, "POST"))
@@ -148,9 +147,9 @@ public class NetworkManager : MonoBehaviour
     public event Action<string, Vector3, int> OnEnemySpawned;
     public event Action<string, Vector3> OnEnemySynced;
 
-    private void HandleMessage(string type, string payload)
+    private void HandleMessage(string type, string playerId, string payload)
     {
-        Debug.Log($"[NetworkManager] Message received: {type}");
+        Debug.Log($"[NetworkManager] Message received: {type} from {playerId}");
         
         switch (type)
         {
@@ -160,15 +159,17 @@ public class NetworkManager : MonoBehaviour
                 break;
             case "PLAYER_JOINED":
                 var joinData = JsonUtility.FromJson<JoinData>(payload);
-                OnRemotePlayerJoined?.Invoke(joinData.playerId, joinData.playerName);
+                string idJ = string.IsNullOrEmpty(playerId) ? joinData.playerId : playerId;
+                OnRemotePlayerJoined?.Invoke(idJ, joinData.playerName);
                 break;
             case "PLAYER_LEFT":
                 var leftData = JsonUtility.FromJson<JoinData>(payload);
-                OnRemotePlayerLeft?.Invoke(leftData.playerId);
+                string idL = string.IsNullOrEmpty(playerId) ? leftData.playerId : playerId;
+                OnRemotePlayerLeft?.Invoke(idL);
                 break;
             case "MOVE":
                 var moveData = JsonUtility.FromJson<MoveData>(payload);
-                OnRemotePlayerMoved?.Invoke(moveData.playerId, new Vector3(moveData.x, moveData.y, 0), moveData.rotation);
+                OnRemotePlayerMoved?.Invoke(playerId, new Vector3(moveData.x, moveData.y, 0), moveData.rotation);
                 break;
             case "SPAWN_ENEMY":
                 var enemyData = JsonUtility.FromJson<EnemyNetData>(payload);
@@ -180,16 +181,17 @@ public class NetworkManager : MonoBehaviour
                 break;
             case "SHOOT":
                 var shootData = JsonUtility.FromJson<ShootNetData>(payload);
-                OnRemotePlayerShot?.Invoke(shootData.playerId, new Vector3(shootData.x, shootData.y, 0), shootData.rotation);
+                OnRemotePlayerShot?.Invoke(playerId, new Vector3(shootData.x, shootData.y, 0), shootData.rotation);
                 break;
             case "START_MATCH":
                 OnMatchStarted?.Invoke();
                 break;
             case "DEATH":
                 var gameOverData = JsonUtility.FromJson<GameOverData>(payload);
+                string idD = string.IsNullOrEmpty(playerId) ? gameOverData.playerId : playerId;
                 if (GameManager.Instance != null)
-                    GameManager.Instance.RecordRivalDeath(gameOverData.playerId, gameOverData.survivalTime);
-                OnGameOver?.Invoke(gameOverData.playerId, gameOverData.survivalTime);
+                    GameManager.Instance.RecordRivalDeath(idD, gameOverData.survivalTime);
+                OnGameOver?.Invoke(idD, gameOverData.survivalTime);
                 break;
         }
     }
@@ -220,5 +222,5 @@ public class NetworkManager : MonoBehaviour
     [Serializable] public class GameOverData { public string playerId; public float survivalTime; }
     [Serializable] public class EnemyNetData { public string enemyId; public float x; public float y; public int type; }
     [Serializable] public class EnemySyncData { public string enemyId; public float x; public float y; }
-    [Serializable] public class MoveData { public string playerId; public float x; public float y; public float rotation; }
+    [Serializable] public class MoveData { public float x; public float y; public float rotation; }
 }

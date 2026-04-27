@@ -13,6 +13,7 @@ namespace Networking
     public class NetworkPacket
     {
         public string type;
+        public string playerId; // Injected by server
         public string payload;
     }
 
@@ -22,7 +23,7 @@ namespace Networking
         private Uri serverUri;
         private CancellationTokenSource cancellationTokenSource;
 
-        public event Action<string, string> OnMessageReceived;
+        public event Action<string, string, string> OnMessageReceived;
         public event Action OnConnected;
         public event Action OnDisconnected;
 
@@ -73,7 +74,7 @@ namespace Networking
                 try 
                 {
                     var packet = JsonUtility.FromJson<NetworkPacket>(message);
-                    OnMessageReceived?.Invoke(packet.type, packet.payload);
+                    OnMessageReceived?.Invoke(packet.type, packet.playerId, packet.payload);
                 }
                 catch (Exception e)
                 {

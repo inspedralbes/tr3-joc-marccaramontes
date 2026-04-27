@@ -38,7 +38,10 @@ public class RemotePlayerManager : MonoBehaviour
 
     private void SpawnRemotePlayer(string playerId, string playerName)
     {
-        if (remotePlayers.ContainsKey(playerId)) return;
+        if (string.IsNullOrEmpty(playerId) || remotePlayers.ContainsKey(playerId)) return;
+        
+        // Don't spawn ghost for local player
+        if (NetworkManager.Instance != null && playerId == NetworkManager.Instance.localPlayerName) return;
 
         GameObject ghostGo = Instantiate(playerPrefab, Vector3.zero, Quaternion.identity);
         NetworkIdentity id = ghostGo.GetComponent<NetworkIdentity>();

@@ -171,10 +171,10 @@ public class LobbyController : MonoBehaviour
 
     private void OnStartMatch()
     {
-        Debug.Log($"<b>[Lobby]</b> Emitiendo start_match para sala: {NetworkManager.Instance.currentRoomId}");
+        Debug.Log($"<b>[Lobby]</b> Emitiendo START_MATCH para sala: {NetworkManager.Instance.currentRoomId}");
         // Envolver en un objeto para que el servidor lo reciba como JSON
         var startData = new NetworkManager.StartMatchData { roomId = NetworkManager.Instance.currentRoomId };
-        NetworkManager.Instance.Emit("start_match", startData);
+        NetworkManager.Instance.Emit("START_MATCH", startData);
     }
 
     private void HandleMatchStarted()

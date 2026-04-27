@@ -6,7 +6,9 @@ class GameService {
     }
 
     async handleJoinRoom(ws, payload) {
-        const { roomId, playerName } = payload;
+        // Parse payload if it's a string (Unity sends it as a JSON string within the envelope)
+        const data = typeof payload === 'string' ? JSON.parse(payload) : payload;
+        const { roomId, playerName } = data;
         
         // Requirement 4.1/4.2 Validation: Check if player exists in common repository
         const user = await this.userRepo.findByUsername(playerName);
@@ -50,7 +52,13 @@ class GameService {
         const roomId = sender.currentRoomId;
         if (!roomId || !this.rooms.has(roomId)) return;
 
-        const message = JSON.stringify({ type, payload });
+        // Inject sender's identity (using playerName as ID for the prototype)
+        const message = JSON.stringify({ 
+            type, 
+            playerId: sender.currentPlayerName,
+            payload 
+        });
+
         this.rooms.get(roomId).forEach((client) => {
             if (client.readyState === 1) { // WebSocket.OPEN
                 if (includeSender || client !== sender) {
