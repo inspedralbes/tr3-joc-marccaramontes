@@ -10,6 +10,7 @@ public class LobbyController : MonoBehaviour
     public CanvasGroup mainPanelGroup; 
     public TMP_InputField nameInputField;
     public TMP_InputField roomInputField;
+    public TMP_InputField serverAddressInputField;
     public Button createBtn;
     public Button joinBtn;
     public Button backBtn;
@@ -55,6 +56,15 @@ public class LobbyController : MonoBehaviour
             nameInputField.text = PlayerPrefs.GetString("PlayerName");
         }
 
+        // Cargar dirección del servidor previa
+        if (serverAddressInputField != null)
+        {
+            serverAddressInputField.text = PlayerPrefs.GetString("ServerAddress", "localhost");
+            serverAddressInputField.onValueChanged.AddListener((val) => {
+                if (NetworkManager.Instance != null) NetworkManager.Instance.UpdateServerAddress(val);
+            });
+        }
+
         // Animación de entrada
         if (mainPanelGroup != null && UIAnimationManager.Instance != null)
             StartCoroutine(UIAnimationManager.Instance.FadeCanvasGroup(mainPanelGroup, 0, 1, 0.5f));
@@ -87,6 +97,7 @@ public class LobbyController : MonoBehaviour
         if (string.IsNullOrEmpty(playerName)) return;
 
         SavePlayerName(playerName);
+        SaveServerAddress();
         SetStatus("Creando sala vía HTTP...", false);
         SwitchToWaitingPanel();
 
@@ -112,6 +123,7 @@ public class LobbyController : MonoBehaviour
         if (string.IsNullOrEmpty(playerName) || string.IsNullOrEmpty(roomId)) return;
 
         SavePlayerName(playerName);
+        SaveServerAddress();
         SetStatus($"Uniéndose a {roomId} vía HTTP...", false);
         SwitchToWaitingPanel();
 
@@ -184,6 +196,21 @@ public class LobbyController : MonoBehaviour
         NetworkManager.Instance.localPlayerId = name; // Vinculación de identidad
         PlayerPrefs.SetString("PlayerName", name);
         PlayerPrefs.Save();
+    }
+
+    private void SaveServerAddress()
+    {
+        if (serverAddressInputField != null)
+        {
+            string host = serverAddressInputField.text.Trim();
+            if (string.IsNullOrEmpty(host)) host = "localhost";
+            
+            PlayerPrefs.SetString("ServerAddress", host);
+            PlayerPrefs.Save();
+            
+            if (NetworkManager.Instance != null)
+                NetworkManager.Instance.UpdateServerAddress(host);
+        }
     }
 
     private void OnStartMatch()

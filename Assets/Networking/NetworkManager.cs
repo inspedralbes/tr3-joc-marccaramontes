@@ -10,8 +10,9 @@ public class NetworkManager : MonoBehaviour
     public static NetworkManager Instance { get; private set; }
 
     [Header("Configuración")]
-    public string serverWsUrl = "ws://localhost:3002";
+    public string serverWsUrl = "ws://localhost:3000/ws";
     public string serverHttpUrl = "http://localhost:3000/api";
+    public string serverHost = "localhost";
     
     [Header("Estado")]
     public string currentRoomId;
@@ -29,11 +30,24 @@ public class NetworkManager : MonoBehaviour
             Instance = this;
             DontDestroyOnLoad(gameObject);
             client = gameObject.AddComponent<NativeWebSocketClient>();
+            
+            // Cargar dirección guardada
+            string savedHost = PlayerPrefs.GetString("ServerAddress", "localhost");
+            UpdateServerAddress(savedHost);
         }
         else
         {
             Destroy(gameObject);
         }
+    }
+
+    public void UpdateServerAddress(string host)
+    {
+        if (string.IsNullOrEmpty(host)) host = "localhost";
+        serverHost = host;
+        serverHttpUrl = $"http://{host}:3000/api";
+        serverWsUrl = $"ws://{host}:3000/ws";
+        Debug.Log($"[NetworkManager] Server address updated to: {host}");
     }
 
     private void Start()
