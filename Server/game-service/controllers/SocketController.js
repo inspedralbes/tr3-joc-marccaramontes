@@ -20,6 +20,9 @@ class SocketController {
                 case 'PLAYER_DEATH':
                     this.gameService.broadcastToRoom(ws, type, payload);
                     break;
+                case 'player_death':
+                    this.gameService.broadcastToRoom(ws, 'PLAYER_DEATH', payload);
+                    break;
                 case 'START_MATCH':
                     this.gameService.broadcastToRoom(ws, 'START_MATCH', payload, true);
                     break;

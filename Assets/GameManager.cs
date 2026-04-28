@@ -213,9 +213,22 @@ public class GameManager : MonoBehaviour
 
     private void CheckAllPlayersDead()
     {
-        // En modo 1vs1 esperamos a tener 2 tiempos registrados
-        // O si estamos solos (desconexión), terminar también
-        if (playerDeathTimes.Count >= 2)
+        // En modo 1vs1 esperamos a tener tantos tiempos registrados como jugadores haya en la sala
+        int targetCount = (NetworkManager.Instance != null) ? NetworkManager.Instance.playerCount : 1;
+
+        if (currentMode == GameMode.Online)
+        {
+            if (playerDeathTimes.Count >= targetCount)
+            {
+                isGameOver = true;
+                StartCoroutine(DeathSequenceCoroutine());
+            }
+            else
+            {
+                Debug.Log($"[GameManager] Esperando a que el resto de jugadores mueran... ({playerDeathTimes.Count}/{targetCount})");
+            }
+        }
+        else
         {
             isGameOver = true;
             StartCoroutine(DeathSequenceCoroutine());

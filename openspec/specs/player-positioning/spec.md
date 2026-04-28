@@ -28,6 +28,13 @@ The system SHALL use a standard circular hitbox for all characters (Player and E
 - **WHEN** the `PlayerMovement` script is active
 - **THEN** the `CircleCollider2D` component MUST have a radius of 0.25
 
+### Requirement: Global Remote Player Management
+La escena de juego SHALL contener una instancia de `RemotePlayerManager` para gestionar la visualización de otros jugadores en modo multijugador.
+
+#### Scenario: Visualización de rivales
+- **WHEN** Se carga `SampleScene` en modo multijugador
+- **THEN** El `RemotePlayerManager` SHALL estar presente y suscrito a los eventos de red para instanciar los prefabs de los otros jugadores.
+
 ### Requirement: Local Player Self-Identification
 The `PlayerMovement` system SHALL automatically identify as the "Local Player" by default. This ensures that the local instance always has authority to process input and physics, while remote "ghost" instances must be explicitly marked as non-local during their initialization.
 
@@ -37,4 +44,4 @@ The `PlayerMovement` system SHALL automatically identify as the "Local Player" b
 
 #### Scenario: Remote proxy de-authorization
 - **WHEN** the `RemotePlayerManager` instantiates a player prefab for a rival
-- **THEN** it MUST immediately set `isLocalPlayer` to false on that instance to prevent input/physics conflicts.
+- **THEN** it MUST immediately set `isLocalPlayer` to false on that instance to prevent input/physics conflicts AND it SHALL disable local movement scripts to ensure only network updates control the ghost.

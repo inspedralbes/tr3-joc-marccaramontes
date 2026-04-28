@@ -18,6 +18,7 @@ public class NetworkManager : MonoBehaviour
     public bool isHost;
     public string localPlayerId;
     public string localPlayerName;
+    public int playerCount = 1;
 
     private NativeWebSocketClient client;
 
@@ -157,17 +158,26 @@ public class NetworkManager : MonoBehaviour
             case "ROOM_JOINED_CONFIRMED":
                 var confirmedData = JsonUtility.FromJson<RoomConfirmedData>(payload);
                 isHost = confirmedData.isHost;
-                OnLobbyPlayersUpdated?.Invoke(confirmedData.players);
+                if (confirmedData.players != null)
+                {
+                    playerCount = confirmedData.players.Length;
+                    OnLobbyPlayersUpdated?.Invoke(confirmedData.players);
+                }
                 break;
             case "PLAYER_JOINED":
                 var joinData = JsonUtility.FromJson<JoinData>(payload);
                 string idJ = string.IsNullOrEmpty(playerId) ? joinData.playerId : playerId;
                 OnRemotePlayerJoined?.Invoke(idJ, joinData.playerName);
-                OnLobbyPlayersUpdated?.Invoke(joinData.players);
+                if (joinData.players != null)
+                {
+                    playerCount = joinData.players.Length;
+                    OnLobbyPlayersUpdated?.Invoke(joinData.players);
+                }
                 break;
             case "PLAYER_LEFT":
                 var leftData = JsonUtility.FromJson<JoinData>(payload);
                 string idL = string.IsNullOrEmpty(playerId) ? leftData.playerId : playerId;
+                playerCount = Mathf.Max(1, playerCount - 1);
                 OnRemotePlayerLeft?.Invoke(idL);
                 break;
             case "MOVE":
@@ -189,6 +199,7 @@ public class NetworkManager : MonoBehaviour
             case "START_MATCH":
                 OnMatchStarted?.Invoke();
                 break;
+            case "PLAYER_DEATH":
             case "DEATH":
                 var gameOverData = JsonUtility.FromJson<GameOverData>(payload);
                 string idD = string.IsNullOrEmpty(playerId) ? gameOverData.playerId : playerId;
