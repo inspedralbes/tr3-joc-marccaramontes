@@ -10,7 +10,7 @@ public class NetworkManager : MonoBehaviour
     public static NetworkManager Instance { get; private set; }
 
     [Header("Configuración")]
-    public string serverWsUrl = "ws://localhost:3000/ws";
+    public string serverWsUrl = "ws://localhost:3002";
     public string serverHttpUrl = "http://localhost:3000/api";
     
     [Header("Estado")]
@@ -140,6 +140,7 @@ public class NetworkManager : MonoBehaviour
 
     public event Action<string, Vector3, float> OnRemotePlayerMoved;
     public event Action<string, string> OnRemotePlayerJoined;
+    public event Action<string[]> OnLobbyPlayersUpdated;
     public event Action<string> OnRemotePlayerLeft;
     public event Action<string, Vector3, float> OnRemotePlayerShot;
     public event Action OnMatchStarted;
@@ -156,11 +157,13 @@ public class NetworkManager : MonoBehaviour
             case "ROOM_JOINED_CONFIRMED":
                 var confirmedData = JsonUtility.FromJson<RoomConfirmedData>(payload);
                 isHost = confirmedData.isHost;
+                OnLobbyPlayersUpdated?.Invoke(confirmedData.players);
                 break;
             case "PLAYER_JOINED":
                 var joinData = JsonUtility.FromJson<JoinData>(payload);
                 string idJ = string.IsNullOrEmpty(playerId) ? joinData.playerId : playerId;
                 OnRemotePlayerJoined?.Invoke(idJ, joinData.playerName);
+                OnLobbyPlayersUpdated?.Invoke(joinData.players);
                 break;
             case "PLAYER_LEFT":
                 var leftData = JsonUtility.FromJson<JoinData>(payload);
@@ -216,8 +219,8 @@ public class NetworkManager : MonoBehaviour
 
     [Serializable] public class LeaveData { public string roomId; }
     [Serializable] public class JoinSocketData { public string roomId; public string playerName; }
-    [Serializable] public class RoomConfirmedData { public string roomId; public bool isHost; }
-    [Serializable] public class JoinData { public string playerId; public string playerName; }
+    [Serializable] public class RoomConfirmedData { public string roomId; public bool isHost; public string[] players; }
+    [Serializable] public class JoinData { public string playerId; public string playerName; public string[] players; }
     [Serializable] public class ShootNetData { public string playerId; public float x; public float y; public float rotation; }
     [Serializable] public class GameOverData { public string playerId; public float survivalTime; }
     [Serializable] public class EnemyNetData { public string enemyId; public float x; public float y; public int type; }

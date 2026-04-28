@@ -181,7 +181,7 @@ public class EnemySpawner : MonoBehaviour
         // Notificar al resto
         if (NetworkManager.Instance != null && NetworkManager.Instance.isHost)
         {
-            NetworkManager.Instance.Emit("spawn_enemy", new EnemySpawnData {
+            NetworkManager.Instance.Emit("SPAWN_ENEMY", new EnemySpawnData {
                 roomId = NetworkManager.Instance.currentRoomId,
                 enemyId = networkId,
                 x = origin.x + randomOffset.x,

@@ -42,6 +42,7 @@ public class LobbyController : MonoBehaviour
         if (NetworkManager.Instance != null)
         {
             NetworkManager.Instance.OnMatchStarted += HandleMatchStarted;
+            NetworkManager.Instance.OnLobbyPlayersUpdated += HandlePlayersUpdated;
         }
         else
         {
@@ -62,7 +63,22 @@ public class LobbyController : MonoBehaviour
     private void OnDestroy()
     {
         if (NetworkManager.Instance != null)
+        {
             NetworkManager.Instance.OnMatchStarted -= HandleMatchStarted;
+            NetworkManager.Instance.OnLobbyPlayersUpdated -= HandlePlayersUpdated;
+        }
+    }
+
+    private void HandlePlayersUpdated(string[] players)
+    {
+        if (statusText == null) return;
+        
+        string list = "Jugadores:\n";
+        foreach (string p in players)
+        {
+            list += $"- {p}\n";
+        }
+        statusText.text = list;
     }
 
     private void OnCreateRoom()

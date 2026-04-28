@@ -25,15 +25,16 @@ class GameService {
         this.rooms.get(roomId).add(ws);
 
         const isHost = this.rooms.get(roomId).size === 1;
+        const playerNames = Array.from(this.rooms.get(roomId)).map(ws => ws.currentPlayerName);
 
         console.log(`[GameService] Player ${playerName} joined room ${roomId} (isHost: ${isHost})`);
         
         ws.send(JSON.stringify({
             type: 'ROOM_JOINED_CONFIRMED',
-            payload: JSON.stringify({ roomId, isHost })
+            payload: JSON.stringify({ roomId, isHost, players: playerNames })
         }));
 
-        this.broadcastToRoom(ws, 'PLAYER_JOINED', JSON.stringify({ playerName, roomId }));
+        this.broadcastToRoom(ws, 'PLAYER_JOINED', JSON.stringify({ playerName, roomId, players: playerNames }));
     }
 
     handleDisconnect(ws) {

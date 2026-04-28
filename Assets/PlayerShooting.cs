@@ -126,7 +126,7 @@ public class PlayerShooting : MonoBehaviour
         // Notificar red
         if (NetworkManager.Instance != null && NetworkManager.Instance.currentRoomId != "")
         {
-            NetworkManager.Instance.Emit("player_shoot", new ShootData {
+            NetworkManager.Instance.Emit("SHOOT", new ShootData {
                 roomId = NetworkManager.Instance.currentRoomId,
                 x = transform.position.x,
                 y = transform.position.y,

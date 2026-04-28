@@ -24,6 +24,16 @@ public class SceneSetupHelper : Editor
         // ASEGURAR MANAGERS
         GameObject managerGo = GameObject.Find("_Managers") ?? new GameObject("_Managers");
         if (managerGo.GetComponent<UIAnimationManager>() == null) managerGo.AddComponent<UIAnimationManager>();
+        
+        // RemotePlayerManager
+        if (managerGo.GetComponent<RemotePlayerManager>() == null) 
+        {
+            var rpm = managerGo.AddComponent<RemotePlayerManager>();
+            // Intentar asignar el prefab del jugador automáticamente
+            GameObject playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Player.prefab") ?? 
+                                     AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Enemy.prefab"); // Fallback si no hay player prefab obvio
+            if (playerPrefab != null) rpm.playerPrefab = playerPrefab;
+        }
 
         // LIMPIEZA DE DUPLICADOS (Sanación de escena)
         var allRegisterers = Resources.FindObjectsOfTypeAll<ResultsUIRegisterer>()

@@ -56,6 +56,13 @@ public class RemotePlayerManager : MonoBehaviour
         ghostGo.name = "RemotePlayer_" + playerId;
         Rigidbody2D rb = ghostGo.GetComponent<Rigidbody2D>();
         if (rb != null) rb.bodyType = RigidbodyType2D.Kinematic;
+
+        // DESACTIVAR SCRIPTS DE CONTROL LOCAL
+        MonoBehaviour movement = ghostGo.GetComponent<PlayerMovement>();
+        if (movement != null) movement.enabled = false;
+        
+        MonoBehaviour shooting = ghostGo.GetComponent<PlayerShooting>();
+        if (shooting != null) shooting.enabled = false;
         
         remotePlayers.Add(playerId, new GhostData { 
             gameObject = ghostGo, 
@@ -74,7 +81,22 @@ public class RemotePlayerManager : MonoBehaviour
         }
         else
         {
-            SpawnRemotePlayer(playerId, "Unknown Player");
+            Debug.Log($"[RemotePlayerManager] Recibido movimiento de jugador desconocido {playerId}. Spawneando...");
+            SpawnRemotePlayer(playerId, playerId);
+            
+            // Re-intentar obtener los datos tras el spawn para aplicar la posición inmediatamente
+            if (remotePlayers.TryGetValue(playerId, out GhostData newData))
+            {
+                newData.targetPosition = position;
+                newData.targetRotation = Quaternion.Euler(0, 0, rotation);
+                
+                // Snap inicial: Posicionar el objeto físicamente de inmediato
+                if (newData.gameObject != null)
+                {
+                    newData.gameObject.transform.position = position;
+                    newData.gameObject.transform.rotation = Quaternion.Euler(0, 0, rotation);
+                }
+            }
         }
     }
 

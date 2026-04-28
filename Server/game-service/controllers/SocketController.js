@@ -17,10 +17,10 @@ class SocketController {
                 case 'SPAWN_ENEMY':
                 case 'ENEMY_SYNC':
                 case 'DEATH':
+                case 'PLAYER_DEATH':
                     this.gameService.broadcastToRoom(ws, type, payload);
                     break;
                 case 'START_MATCH':
-                case 'start_match':
                     this.gameService.broadcastToRoom(ws, 'START_MATCH', payload, true);
                     break;
                 case 'LEAVE_ROOM':
