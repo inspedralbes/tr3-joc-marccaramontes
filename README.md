@@ -1,11 +1,11 @@
-# 💀 Infernal Survival: AEA Edition 💀
+#  Infernal Survival: AEA Edition 
 
 [![Unity](https://img.shields.io/badge/Unity-6_--_6000.0.35f2-black?style=for-the-badge&logo=unity)](https://unity.com/)
 [![Node.js](https://img.shields.io/badge/Node.js-20+-green?style=for-the-badge&logo=node.js)](https://nodejs.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-blue?style=for-the-badge&logo=postgresql)](https://www.postgresql.org/)
 [![OpenSpec](https://img.shields.io/badge/Workflow-OpenSpec-orange?style=for-the-badge)](https://github.com/google/gemini-cli)
 
-## 📄 Abstract (Resum)
+##  Abstract (Resum)
 
 **Proyecto:** Infernal Survival: AEA Edition  
 **Curso:** 2DAM 2025-2026  
@@ -20,11 +20,11 @@ El sistema emplea una arquitectura de microservicios distribuida sobre Node.js:
 - **Componentes:** Unity Client (gameplay/UI), Gateway (proxy/seguridad), Game Service (sincronización tiempo real) y API Service (persistencia).
 - **Interrelación:** El cliente conecta al Gateway, que redirige el tráfico de red al Game Service y las peticiones REST al API Service, validando la identidad del jugador en cada paquete.
 
-[🎥 Vídeo de Presentación (Canva)](https://www.canva.com/design/TU-LINK-AQUI)
+[ Vídeo de Presentación (Canva)](https://www.canva.com/design/TU-LINK-AQUI)
 
 ---
 
-## 🌑 La Experiencia "Infernal"
+##  La Experiencia "Infernal"
 
 El proyecto trasciende los prototipos convencionales mediante una atmósfera opresiva y técnica:
 - **Atmósfera de Abismo:** Inspirado en *Devil Daggers*, utiliza un sistema de iluminación dinámica 2D centrado en el jugador y post-procesado agresivo (Vignette, Film Grain, Bloom).
@@ -32,7 +32,7 @@ El proyecto trasciende los prototipos convencionales mediante una atmósfera opr
 - **ML-Agents Integration:** Agentes "Hunter" entrenados mediante aprendizaje por refuerzo para optimizar la persecución.
 - **Sistema de Oleadas:** Progresión dinámica de dificultad con picos de intensidad y periodos de calma.
 
-## 🛠️ Stack Tecnológico
+##  Stack Tecnológico
 
 ### Frontend (Unity 6)
 - **Motor:** Unity 6 (6000.0.35f2) con Universal Render Pipeline (URP 17).
@@ -48,7 +48,7 @@ Arquitectura distribuida y escalable dividida en tres servicios independientes:
 
 ---
 
-## 🧬 Desarrollo Dirigido por Especificaciones (Spec-Driven)
+##  Desarrollo Dirigido por Especificaciones (Spec-Driven)
 
 Este proyecto se ha construido bajo la metodología **OpenSpec**, donde cada línea de código nace de una decisión de diseño documentada:
 
@@ -59,7 +59,7 @@ Este proyecto se ha construido bajo la metodología **OpenSpec**, donde cada lí
 
 ---
 
-## 🏗️ Arquitectura del Sistema
+##  Arquitectura del Sistema
 
 ```mermaid
 graph TD
@@ -87,7 +87,7 @@ graph TD
 
 ---
 
-## 🚀 Instalación y Uso
+##  Instalación y Uso
 
 ### Servidor
 ```bash
@@ -103,5 +103,5 @@ npm run start # Inicia Gateway, API y Game Service simultáneamente (start-all.j
 
 ---
 
-## ✒️ Autor
+##  Autor
 - **Marc Caramontes** - *Desarrollo Integral y Arquitectura*

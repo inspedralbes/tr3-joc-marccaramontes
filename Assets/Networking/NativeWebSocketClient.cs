@@ -22,6 +22,8 @@ namespace Networking
         private ClientWebSocket webSocket;
         private Uri serverUri;
         private CancellationTokenSource cancellationTokenSource;
+        private int retryCount = 0;
+        private const int MaxRetries = 3;
 
         public event Action<string, string, string> OnMessageReceived;
         public event Action OnConnected;
@@ -46,9 +48,17 @@ namespace Networking
             if (connectTask.IsFaulted)
             {
                 Debug.LogError("[WS] Connection Error: " + connectTask.Exception.Message);
+                if (retryCount < MaxRetries)
+                {
+                    retryCount++;
+                    Debug.Log($"[WS] Retrying connection ({retryCount}/{MaxRetries})...");
+                    yield return new WaitForSeconds(2f);
+                    StartCoroutine(ConnectRoutine());
+                }
                 yield break;
             }
 
+            retryCount = 0;
             Debug.Log("[WS] Connected to server.");
             OnConnected?.Invoke();
 
@@ -63,10 +73,17 @@ namespace Networking
                 var receiveTask = webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationTokenSource.Token);
                 while (!receiveTask.IsCompleted) yield return null;
 
-                if (receiveTask.Result.MessageType == WebSocketMessageType.Close)
+                if (receiveTask.Result.MessageType == WebSocketMessageType.Close || webSocket.State != WebSocketState.Open)
                 {
-                    Debug.Log("[WS] Connection closed by server.");
+                    Debug.Log("[WS] Connection closed or lost.");
                     OnDisconnected?.Invoke();
+                    
+                    // Si perdimos la conexión inesperadamente, intentar reconectar
+                    if (retryCount < MaxRetries)
+                    {
+                        Debug.Log("[WS] Attempting automatic reconnection...");
+                        StartCoroutine(ConnectRoutine());
+                    }
                     break;
                 }
 

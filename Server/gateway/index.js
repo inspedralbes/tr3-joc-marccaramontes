@@ -18,7 +18,11 @@ app.use('/api', (req, res) => {
     console.log(`[Gateway] Routing API request: ${req.url}`);
     proxy.web(req, res, { target: API_SERVICE_URL }, (err) => {
         console.error('[Gateway] API Proxy Error:', err.message);
-        res.status(502).send('API Service Unavailable');
+        res.status(502).json({
+            error: 'Gateway Error',
+            message: 'API Service Unavailable or connection refused',
+            code: 502
+        });
     });
 });
 
