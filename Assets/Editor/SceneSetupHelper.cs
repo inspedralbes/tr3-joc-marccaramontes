@@ -68,11 +68,82 @@ public class SceneSetupHelper : Editor
         // HUD
         SetupHUD(canvasObj, registerer);
 
+        // ATMÓSFERA Y LUCES
+        SetupAtmosphere(scene);
+        SetupLighting(scene);
+
         EditorUtility.SetDirty(registerer);
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
 
-        Debug.Log("<color=green><b>[SceneSetup]</b> Scripts sincronizados con tu jerarquía manual.</color>");
+        Debug.Log("<color=green><b>[SceneSetup]</b> Scripts sincronizados con tu jerarquía manual y atmósfera configurada.</color>");
+    }
+
+    private static void SetupAtmosphere(UnityEngine.SceneManagement.Scene scene)
+    {
+        // 1. CONFIGURAR CÁMARA
+        GameObject camGo = scene.GetRootGameObjects().FirstOrDefault(go => go.name == "Main Camera");
+        if (camGo != null)
+        {
+            Camera cam = camGo.GetComponent<Camera>();
+            if (cam != null)
+            {
+                cam.backgroundColor = Color.black;
+                cam.clearFlags = CameraClearFlags.SolidColor;
+            }
+            // Activar Post-processing en el componente URP si existe
+            var additionalCamData = camGo.GetComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>();
+            if (additionalCamData != null) additionalCamData.renderPostProcessing = true;
+        }
+
+        // 2. CONFIGURAR PLATAFORMA
+        GameObject platformGo = GameObject.FindGameObjectWithTag("Platform") ?? scene.GetRootGameObjects().FirstOrDefault(go => go.name.Contains("Plat"));
+        if (platformGo != null)
+        {
+            var renderer = platformGo.GetComponent<SpriteRenderer>();
+            if (renderer != null)
+            {
+                Color charcoal = new Color(0.1f, 0.1f, 0.1f, 1f); // #1A1A1A aproximado
+                renderer.color = charcoal;
+            }
+        }
+    }
+
+    private static void SetupLighting(UnityEngine.SceneManagement.Scene scene)
+    {
+        // 1. GLOBAL LIGHT 2D
+        var globalLight = Object.FindObjectsByType<UnityEngine.Rendering.Universal.Light2D>(FindObjectsSortMode.None)
+            .FirstOrDefault(l => l.lightType == UnityEngine.Rendering.Universal.Light2D.LightType.Global);
+        
+        if (globalLight == null)
+        {
+            GameObject glGo = new GameObject("Global Light 2D", typeof(UnityEngine.Rendering.Universal.Light2D));
+            globalLight = glGo.GetComponent<UnityEngine.Rendering.Universal.Light2D>();
+            globalLight.lightType = UnityEngine.Rendering.Universal.Light2D.LightType.Global;
+        }
+        globalLight.intensity = 0.15f;
+
+        // 2. PLAYER POINT LIGHT (TORCH)
+        GameObject playerGo = GameObject.FindGameObjectWithTag("Player");
+        if (playerGo != null)
+        {
+            var playerLight = playerGo.GetComponentInChildren<UnityEngine.Rendering.Universal.Light2D>();
+            if (playerLight == null || playerLight.lightType == UnityEngine.Rendering.Universal.Light2D.LightType.Global)
+            {
+                GameObject lightGo = new GameObject("TorchLight", typeof(UnityEngine.Rendering.Universal.Light2D));
+                lightGo.transform.SetParent(playerGo.transform);
+                lightGo.transform.localPosition = Vector3.zero;
+                playerLight = lightGo.GetComponent<UnityEngine.Rendering.Universal.Light2D>();
+            }
+            
+            playerLight.lightType = UnityEngine.Rendering.Universal.Light2D.LightType.Point;
+            playerLight.pointLightOuterRadius = 8f;
+            playerLight.intensity = 1.0f;
+            
+            // Color #FFCC88 (Amber)
+            Color amber = new Color(1f, 0.8f, 0.53f, 1f); 
+            playerLight.color = amber;
+        }
     }
 
     private static void SetupHUD(GameObject canvasObj, ResultsUIRegisterer registerer)

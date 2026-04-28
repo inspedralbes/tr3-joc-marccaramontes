@@ -43,6 +43,21 @@ public class PlayerMovement : MonoBehaviour
         
         gameObject.name = "LocalPlayer";
         gameObject.tag = "Player";
+
+        // FALLBACK: Asegurar que el jugador tenga luz si no se configuró en el editor
+        var light = GetComponentInChildren<UnityEngine.Rendering.Universal.Light2D>();
+        if (light == null || light.lightType == UnityEngine.Rendering.Universal.Light2D.LightType.Global)
+        {
+            GameObject lightGo = new GameObject("TorchLight_Fallback", typeof(UnityEngine.Rendering.Universal.Light2D));
+            lightGo.transform.SetParent(transform);
+            lightGo.transform.localPosition = Vector3.zero;
+            var l = lightGo.GetComponent<UnityEngine.Rendering.Universal.Light2D>();
+            l.lightType = UnityEngine.Rendering.Universal.Light2D.LightType.Point;
+            l.pointLightOuterRadius = 8f;
+            l.intensity = 1.0f;
+            l.color = new Color(1f, 0.8f, 0.53f, 1f); // Amber
+            Debug.Log("<b>[PlayerMovement]</b> Luz de antorcha añadida por fallback.");
+        }
     }
 
     void Start()

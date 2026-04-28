@@ -1,4 +1,4 @@
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: Abyss Visual Style
 The system SHALL implement a dark, high-contrast visual style representing an "Abyss", ensuring that all post-processing effects are active in build.

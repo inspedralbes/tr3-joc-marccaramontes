@@ -1,4 +1,4 @@
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: Player-Centric Torch Aura
 The system SHALL ensure the player character acts as a mobile light source in the environment, persisted in the scene or prefab.
