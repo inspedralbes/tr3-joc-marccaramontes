@@ -260,6 +260,6 @@ public class NetworkManager : MonoBehaviour
     [Serializable] public class GameOverData { public string playerId; public float survivalTime; }
     [Serializable] public class EnemyNetData { public string enemyId; public float x; public float y; public int type; }
     [Serializable] public class EnemySyncData { public string enemyId; public float x; public float y; }
-    [Serializable] public class MoveData { public float x; float y; public float rotation; }
+    [Serializable] public class MoveData { public float x; public float y; public float rotation; }
     [Serializable] public class ErrorResponse { public string error; public string message; public int code; }
     }
