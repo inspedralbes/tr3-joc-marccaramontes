@@ -27,3 +27,10 @@ Remote clients SHALL use interpolation to smoothly transition agents between rec
 #### Scenario: Smooth agent movement
 - **WHEN** a client receives an `ENEMY_SYNC` update
 - **THEN** it SHALL smoothly move the local proxy of the agent toward the new position using a Lerp-based approach
+
+### Requirement: Robust JSON Message Envelope
+All communication between client and server SHALL follow a standard JSON envelope: `{"type": "EVENT_NAME", "payload": "JSON_STRING_PAYLOAD"}`.
+
+#### Scenario: Valid packet parsing
+- **WHEN** the server receives a message from Unity
+- **THEN** it MUST correctly parse the outer envelope AND the nested JSON payload within the `payload` field before processing logic
