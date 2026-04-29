@@ -22,6 +22,11 @@ public class LobbyController : MonoBehaviour
     public Button startMatchBtn;
     public Button backToMainBtn; // Botón para volver al panel principal
 
+    [Header("Discovery status")]
+    public bool isUserTypingAddress = false;
+    private float lastTypeTime = 0f;
+    private const float typingGracePeriod = 5f;
+
     private Color originalStatusColor;
 
     private void Start()
@@ -50,6 +55,14 @@ public class LobbyController : MonoBehaviour
             Debug.LogWarning("<b>[LobbyController]</b> NetworkManager.Instance no encontrado. ¿Has pasado por la escena Menu?");
         }
 
+        // Suscribirse a LAN Discovery
+        if (LANDiscoveryManager.Instance != null)
+        {
+            LANDiscoveryManager.Instance.OnServerFound += HandleServerDiscovered;
+            LANDiscoveryManager.Instance.StartListening();
+            SetStatus("Buscando servidor local...", false);
+        }
+
         // Cargar nombre previo si existe
         if (PlayerPrefs.HasKey("PlayerName") && nameInputField != null)
         {
@@ -62,6 +75,8 @@ public class LobbyController : MonoBehaviour
             serverAddressInputField.text = PlayerPrefs.GetString("ServerAddress", "localhost");
             serverAddressInputField.onValueChanged.AddListener((val) => {
                 if (NetworkManager.Instance != null) NetworkManager.Instance.UpdateServerAddress(val);
+                isUserTypingAddress = true;
+                lastTypeTime = Time.time;
             });
         }
 
@@ -76,6 +91,27 @@ public class LobbyController : MonoBehaviour
         {
             NetworkManager.Instance.OnMatchStarted -= HandleMatchStarted;
             NetworkManager.Instance.OnLobbyPlayersUpdated -= HandlePlayersUpdated;
+        }
+
+        if (LANDiscoveryManager.Instance != null)
+        {
+            LANDiscoveryManager.Instance.OnServerFound -= HandleServerDiscovered;
+            LANDiscoveryManager.Instance.StopListening();
+            LANDiscoveryManager.Instance.StopBroadcasting();
+        }
+    }
+
+    private void HandleServerDiscovered(string ip)
+    {
+        // Si el usuario está escribiendo o ha escrito recientemente, no sobreescribimos
+        if (isUserTypingAddress && (Time.time - lastTypeTime) < typingGracePeriod) return;
+
+        if (serverAddressInputField != null && serverAddressInputField.text != ip)
+        {
+            serverAddressInputField.text = ip;
+            if (NetworkManager.Instance != null) NetworkManager.Instance.UpdateServerAddress(ip);
+            SetStatus($"Servidor detectado en {ip}", false);
+            Debug.Log($"[Lobby] IP del servidor auto-rellenada: {ip}");
         }
     }
 
@@ -106,6 +142,14 @@ public class LobbyController : MonoBehaviour
             (response) => {
                 Debug.Log($"Sala creada: {response.roomId}");
                 NetworkManager.Instance.ConnectToSocket(response.roomId);
+                
+                // Iniciar broadcast al ser el host
+                if (LANDiscoveryManager.Instance != null)
+                {
+                    LANDiscoveryManager.Instance.StopListening(); // Dejar de escuchar si somos host
+                    LANDiscoveryManager.Instance.StartBroadcasting();
+                }
+
                 if (UIAnimationManager.Instance != null && roomCodeText != null)
                     StartCoroutine(UIAnimationManager.Instance.PulseScale(roomCodeText.transform, 1.1f, 1.0f)); // Más sutil para espera
             },
