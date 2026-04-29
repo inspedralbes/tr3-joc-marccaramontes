@@ -1,6 +1,7 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
+using System.Net.NetworkInformation;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -43,7 +44,8 @@ public class LANDiscoveryManager : MonoBehaviour
         isBroadcasting = true;
         isListening = false; // El host no necesita escucharse a sí mismo
         
-        Debug.Log($"[LANDiscovery] Iniciando broadcast en puerto {discoveryPort}...");
+        localIP = GetLocalIPv4(); // Asegurar que tenemos la IP más reciente
+        Debug.Log($"[LANDiscovery] Iniciando broadcast en puerto {discoveryPort} con IP: {localIP}...");
         InvokeRepeating(nameof(SendBroadcastPacket), 0f, broadcastInterval);
     }
 
@@ -142,11 +144,39 @@ public class LANDiscoveryManager : MonoBehaviour
 
     public string GetLocalIPv4()
     {
+        foreach (NetworkInterface ni in NetworkInterface.GetAllNetworkInterfaces())
+        {
+            // Solo interfaces activas y que no sean de loopback o túneles
+            if (ni.OperationalStatus == OperationalStatus.Up && 
+                ni.NetworkInterfaceType != NetworkInterfaceType.Loopback && 
+                ni.NetworkInterfaceType != NetworkInterfaceType.Tunnel)
+            {
+                // Priorizar Ethernet y Wi-Fi
+                if (ni.NetworkInterfaceType == NetworkInterfaceType.Ethernet || 
+                    ni.NetworkInterfaceType == NetworkInterfaceType.Wireless80211)
+                {
+                    foreach (UnicastIPAddressInformation ip in ni.GetIPProperties().UnicastAddresses)
+                    {
+                        if (ip.Address.AddressFamily == AddressFamily.InterNetwork)
+                        {
+                            string address = ip.Address.ToString();
+                            // Descartar IPs auto-asignadas (APIPA)
+                            if (!address.StartsWith("169.254"))
+                            {
+                                return address;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Fallback al método antiguo si no se encuentra nada
         string hostName = Dns.GetHostName();
         IPHostEntry hostEntry = Dns.GetHostEntry(hostName);
         foreach (IPAddress ip in hostEntry.AddressList)
         {
-            if (ip.AddressFamily == AddressFamily.InterNetwork)
+            if (ip.AddressFamily == AddressFamily.InterNetwork && !ip.ToString().StartsWith("169.254"))
             {
                 return ip.ToString();
             }
