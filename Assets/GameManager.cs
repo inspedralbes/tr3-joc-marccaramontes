@@ -67,6 +67,11 @@ public class GameManager : MonoBehaviour
             GameObject[] bullets = GameObject.FindGameObjectsWithTag("Bullet");
             foreach (GameObject bullet in bullets) Destroy(bullet);
         } catch { }
+
+        try {
+            GameObject[] enemyBullets = GameObject.FindGameObjectsWithTag("EnemyBullet");
+            foreach (GameObject bullet in enemyBullets) Destroy(bullet);
+        } catch { }
     }
 
     private IEnumerator DeathSequenceCoroutine()

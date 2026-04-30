@@ -14,7 +14,7 @@ GameObject:
   - component: {fileID: 2548293758273645812}
   - component: {fileID: 7834064459273066322}
   m_Layer: 0
-  m_Name: Enemy
+  m_Name: Stalker
   m_TagString: Enemy
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -142,13 +142,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6957ef9ebf6c6fa40af063b13581559e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Enemy
-  type: 0
+  type: 2
   speed: 5
   turnSpeed: 2
   predictionFactor: 0.5
   orbitDistance: 10
   orbitMargin: 2
-  bulletPrefab: {fileID: 0}
+  bulletPrefab: {fileID: 5374209874328191095, guid: 0bc9ad171881ea8469888a26038e6c52, type: 3}
   fireRate: 3
 --- !u!50 &7834064459273066322
 Rigidbody2D:

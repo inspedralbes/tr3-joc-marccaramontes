@@ -14,17 +14,19 @@ public class EnemySpawner : MonoBehaviour
         public int enemyCount;
         public float spawnRate;
         [Range(0, 1)] public float interceptorChance;
+        [Range(0, 1)] public float stalkerChance;
     }
     
     public WaveConfig[] waves = new WaveConfig[] {
-        new WaveConfig { enemyCount = 15, spawnRate = 3.0f, interceptorChance = 0f },
-        new WaveConfig { enemyCount = 30, spawnRate = 2.5f, interceptorChance = 0.2f },
-        new WaveConfig { enemyCount = 50, spawnRate = 2.0f, interceptorChance = 0.4f },
-        new WaveConfig { enemyCount = 80, spawnRate = 1.5f, interceptorChance = 0.5f },
-        new WaveConfig { enemyCount = 120, spawnRate = 1.0f, interceptorChance = 0.6f }
+        new WaveConfig { enemyCount = 15, spawnRate = 3.0f, interceptorChance = 0f, stalkerChance = 0f },
+        new WaveConfig { enemyCount = 30, spawnRate = 2.5f, interceptorChance = 0.2f, stalkerChance = 0f },
+        new WaveConfig { enemyCount = 50, spawnRate = 2.0f, interceptorChance = 0.4f, stalkerChance = 0.1f },
+        new WaveConfig { enemyCount = 80, spawnRate = 1.5f, interceptorChance = 0.5f, stalkerChance = 0.2f },
+        new WaveConfig { enemyCount = 120, spawnRate = 1.0f, interceptorChance = 0.6f, stalkerChance = 0.3f }
     };
 
     public GameObject enemyPrefab;
+    public GameObject stalkerBulletPrefab;
     
     [Header("Configuración de Spawneo")]
     public float minSpawnRadius = 10f;
@@ -166,14 +168,33 @@ public class EnemySpawner : MonoBehaviour
         Vector3 randomOffset = new Vector3(Random.Range(-1.5f, 1.5f), Random.Range(-1.5f, 1.5f), 0f);
         GameObject newEnemy = Instantiate(enemyPrefab, origin + randomOffset, Quaternion.identity);
         
-        // Decidir tipo
+        // Decidir tipo mediante sistema de pesos
         int waveToUse = Mathf.Min(currentWaveIndex, waves.Length - 1);
         WaveConfig config = waves[waveToUse];
         Enemy enemyScript = newEnemy.GetComponent<Enemy>();
+        
         if (enemyScript != null)
         {
-            float chance = config.interceptorChance + (currentWaveIndex >= waves.Length ? 0.1f : 0f);
-            enemyScript.type = Random.value < Mathf.Min(0.8f, chance) ? Enemy.EnemyType.Interceptor : Enemy.EnemyType.Basic;
+            float roll = Random.value;
+            float currentStalkerChance = config.stalkerChance + (currentWaveIndex >= waves.Length ? 0.1f : 0f);
+            float currentInterceptorChance = config.interceptorChance + (currentWaveIndex >= waves.Length ? 0.05f : 0f);
+
+            if (roll < currentStalkerChance)
+            {
+                enemyScript.type = Enemy.EnemyType.Stalker;
+                enemyScript.bulletPrefab = stalkerBulletPrefab;
+                enemyScript.InitializeVisuals(); // Forzar actualización visual
+            }
+            else if (roll < currentStalkerChance + currentInterceptorChance)
+            {
+                enemyScript.type = Enemy.EnemyType.Interceptor;
+                enemyScript.InitializeVisuals(); // Forzar actualización visual
+            }
+            else
+            {
+                enemyScript.type = Enemy.EnemyType.Basic;
+                enemyScript.InitializeVisuals(); // Forzar actualización visual
+            }
         }
 
         newEnemy.GetComponent<NetworkIdentity>()?.Setup(networkId, false, true);

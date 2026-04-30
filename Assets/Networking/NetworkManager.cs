@@ -172,6 +172,7 @@ public class NetworkManager : MonoBehaviour
     public event Action<string, float> OnGameOver;
     public event Action<string, Vector3, int> OnEnemySpawned;
     public event Action<string, Vector3> OnEnemySynced;
+    public event Action<string, Vector3, float> OnEnemyShot;
 
     private void HandleMessage(string type, string playerId, string payload)
     {
@@ -216,6 +217,10 @@ public class NetworkManager : MonoBehaviour
                 var syncData = JsonUtility.FromJson<EnemySyncData>(payload);
                 OnEnemySynced?.Invoke(syncData.enemyId, new Vector3(syncData.x, syncData.y, 0));
                 break;
+            case "ENEMY_SHOOT":
+                var enemyShootData = JsonUtility.FromJson<EnemyShootData>(payload);
+                OnEnemyShot?.Invoke(enemyShootData.enemyId, new Vector3(enemyShootData.x, enemyShootData.y, 0), enemyShootData.rotation);
+                break;
             case "SHOOT":
                 var shootData = JsonUtility.FromJson<ShootNetData>(payload);
                 OnRemotePlayerShot?.Invoke(playerId, new Vector3(shootData.x, shootData.y, 0), shootData.rotation);
@@ -257,6 +262,7 @@ public class NetworkManager : MonoBehaviour
     [Serializable] public class RoomConfirmedData { public string roomId; public bool isHost; public string[] players; }
     [Serializable] public class JoinData { public string playerId; public string playerName; public string[] players; }
     [Serializable] public class ShootNetData { public string playerId; public float x; public float y; public float rotation; }
+    [Serializable] public class EnemyShootData { public string enemyId; public float x; public float y; public float rotation; }
     [Serializable] public class GameOverData { public string playerId; public float survivalTime; }
     [Serializable] public class EnemyNetData { public string enemyId; public float x; public float y; public int type; }
     [Serializable] public class EnemySyncData { public string enemyId; public float x; public float y; }
