@@ -1,4 +1,4 @@
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: Proyectiles Enemigos
 El sistema SHALL permitir que los enemigos disparen proyectiles que dañen al jugador al contacto.

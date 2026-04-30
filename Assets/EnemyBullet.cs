@@ -12,8 +12,25 @@ public class EnemyBullet : MonoBehaviour
 
     void Start()
     {
+        InitializeVisuals();
         // Se destruye automáticamente tras el tiempo de vida definido
         Destroy(gameObject, lifeTime);
+    }
+
+    private void InitializeVisuals()
+    {
+        var renderer = GetComponent<SpriteRenderer>();
+        if (renderer != null)
+        {
+            // Instanciar material para no afectar al asset global (opcional pero recomendado para personalización por bala)
+            renderer.material = new Material(Shader.Find("Custom/SpriteOutline"));
+            
+            // Color Naranja Neon Intenso (HDR)
+            Color neonOrange = new Color(1.0f, 0.45f, 0f, 1f);
+            renderer.material.SetColor("_OutlineColor", neonOrange * 15f);
+            renderer.material.SetFloat("_OutlineWidth", 2.5f);
+            renderer.color = Color.white; // Interior blanco para contraste
+        }
     }
 
     void Update()

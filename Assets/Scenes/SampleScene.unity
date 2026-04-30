@@ -1673,24 +1673,24 @@ MonoBehaviour:
     interceptorChance: 0
     stalkerChance: 0
   - enemyCount: 30
-    spawnRate: 2.5
+    spawnRate: 3
     interceptorChance: 0.2
     stalkerChance: 0
   - enemyCount: 50
-    spawnRate: 2
+    spawnRate: 2.5
     interceptorChance: 0.4
     stalkerChance: 0.2
   - enemyCount: 80
-    spawnRate: 1.5
+    spawnRate: 2
     interceptorChance: 0.5
     stalkerChance: 0.3
   - enemyCount: 120
-    spawnRate: 1
+    spawnRate: 1.5
     interceptorChance: 0.6
     stalkerChance: 0.4
   - enemyCount: 120
     spawnRate: 1
-    interceptorChance: 0.6
+    interceptorChance: 0.8
     stalkerChance: 0.6
   enemyPrefab: {fileID: 3269829081727284105, guid: b60710603916f974193cdac1a58b2dd6, type: 3}
   stalkerBulletPrefab: {fileID: 5374209874328191095, guid: 0bc9ad171881ea8469888a26038e6c52, type: 3}

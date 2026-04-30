@@ -143,13 +143,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Enemy
   type: 2
-  speed: 5
+  speed: 1
   turnSpeed: 2
   predictionFactor: 0.5
   orbitDistance: 10
   orbitMargin: 2
   bulletPrefab: {fileID: 5374209874328191095, guid: 0bc9ad171881ea8469888a26038e6c52, type: 3}
-  fireRate: 3
+  fireRate: 1
 --- !u!50 &7834064459273066322
 Rigidbody2D:
   serializedVersion: 5
