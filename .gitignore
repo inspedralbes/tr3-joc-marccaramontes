@@ -1,0 +1,53 @@
+# --- Unity ---
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+MemoryCaptures/
+Recorder/
+/Assets/AssetStoreTools*
+
+# Archivos de solución y proyecto de Visual Studio / JetBrains
+.vs/
+.idea/
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svclog
+*.pdb
+*.opendb
+*.VC.db
+
+# --- Node.js (Server) ---
+Server/node_modules/
+Server/npm-debug.log*
+Server/api-service/node_modules/
+Server/game-service/node_modules/
+Server/gateway/node_modules/
+
+# Bases de datos locales
+Server/api-service/database.sqlite
+Server/api-service/database.sqlite-journal
+
+# Variables de entorno y secretos
+.env
+.env.local
+.env.*.local
+Server/.env
+Server/**/*.env
+
+# --- OS / IDE ---
+.DS_Store
+Thumbs.db
+.vscode/
+*.swp
+*.bak
