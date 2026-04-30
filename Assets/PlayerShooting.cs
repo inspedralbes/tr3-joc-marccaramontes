@@ -1,8 +1,9 @@
 using UnityEngine;
+using Unity.Netcode;
 using UnityEngine.InputSystem;
 
-[RequireComponent(typeof(NetworkIdentity))]
-public class PlayerShooting : MonoBehaviour
+[RequireComponent(typeof(NetworkObject))]
+public class PlayerShooting : NetworkBehaviour
 {
     public GameObject bulletPrefab;
     public float fireRate = 2f; 
@@ -10,72 +11,7 @@ public class PlayerShooting : MonoBehaviour
 
     private PlayerInput playerInput;
     private InputAction attackAction;
-    private NetworkIdentity networkIdentity;
 
-    void Awake()
-    {
-        networkIdentity = GetComponent<NetworkIdentity>();
-        playerInput = GetComponent<PlayerInput>();
-        if (playerInput != null)
-        {
-            attackAction = playerInput.actions["Attack"];
-            attackAction?.Enable();
-        }
-    }
-
-    void OnEnable()
-    {
-        if (networkIdentity != null && !networkIdentity.isLocalPlayer)
-        {
-            if (NetworkManager.Instance != null)
-            {
-                NetworkManager.Instance.OnRemotePlayerShot += RemoteShoot;
-            }
-        }
-    }
-
-    void OnDisable()
-    {
-        if (networkIdentity != null && !networkIdentity.isLocalPlayer)
-        {
-            if (NetworkManager.Instance != null)
-            {
-                NetworkManager.Instance.OnRemotePlayerShot -= RemoteShoot;
-            }
-        }
-    }
-
-    void Start()
-    {
-        // El registro de eventos ahora se maneja en OnEnable/OnDisable
-    }
-
-    void Update()
-    {
-        if (!networkIdentity.isLocalPlayer) return;
-
-        // BLOQUEO: No disparar si la partida ha terminado
-        if (GameManager.Instance != null && GameManager.Instance.IsGameOver) return;
-
-        bool isAttacking = false;
-        if (attackAction != null)
-        {
-            isAttacking = attackAction.IsPressed();
-        }
-        else
-        {
-            // Bloqueado en Unity 6 si se activa el New Input System
-            isAttacking = false;
-        }
-
-        if (isAttacking && Time.time >= nextFireTime)
-        {
-            Shoot();
-            nextFireTime = Time.time + (1f / fireRate);
-        }
-    }
-
-    private int bulletColorIndex = 0;
     private Color[] neonColors = new Color[] {
         new Color(1f, 0f, 0f),    // Rojo
         new Color(0f, 1f, 0f),    // Verde
@@ -84,6 +20,36 @@ public class PlayerShooting : MonoBehaviour
         new Color(1f, 0f, 1f),    // Magenta
         new Color(0f, 1f, 1f)     // Cian
     };
+    private int bulletColorIndex = 0;
+
+    public override void OnNetworkSpawn()
+    {
+        playerInput = GetComponent<PlayerInput>();
+        if (IsOwner && playerInput != null)
+        {
+            attackAction = playerInput.actions["Attack"];
+            attackAction?.Enable();
+        }
+    }
+
+    void Update()
+    {
+        if (!IsOwner) return;
+
+        if (GameManager.Instance != null && GameManager.Instance.IsGameOver) return;
+
+        bool isAttacking = false;
+        if (attackAction != null)
+        {
+            isAttacking = attackAction.IsPressed();
+        }
+
+        if (isAttacking && Time.time >= nextFireTime)
+        {
+            Shoot();
+            nextFireTime = Time.time + (1f / fireRate);
+        }
+    }
 
     void Shoot()
     {
@@ -94,61 +60,46 @@ public class PlayerShooting : MonoBehaviour
         {
             mousePos = Mouse.current.position.ReadValue();
         }
-        else
-        {
-            Debug.LogWarning("<b>[PlayerShooting]</b> Mouse.current no encontrado.");
-            return;
-        }
+        else return;
 
         Vector3 worldMousePosition = Camera.main.ScreenToWorldPoint(new Vector3(mousePos.x, mousePos.y, 0));
         worldMousePosition.z = 0;
         
         Vector3 shootDirection = (worldMousePosition - transform.position).normalized;
         float angle = Mathf.Atan2(shootDirection.y, shootDirection.x) * Mathf.Rad2Deg;
-        Quaternion rotation = Quaternion.AngleAxis(angle - 90f, Vector3.forward);
 
-        GameObject bullet = Instantiate(bulletPrefab, transform.position, rotation);
+        // Nuevo formato de RPC en Unity 6
+        ShootServerRpc(transform.position, angle - 90f, bulletColorIndex);
         
-        // Aplicar color neon dinámico
-        SpriteRenderer bulletRenderer = bullet.GetComponent<SpriteRenderer>();
-        if (bulletRenderer != null)
-        {
-            bulletRenderer.material = new Material(Shader.Find("Custom/SpriteOutline"));
-            Color baseColor = neonColors[bulletColorIndex];
-            bulletRenderer.material.SetColor("_OutlineColor", baseColor * 15f); // Brillo neon intenso
-            bulletRenderer.material.SetFloat("_OutlineWidth", 3.0f);
-            bulletRenderer.color = baseColor; // Color interior
-            
-            // Ciclar color para el próximo disparo
-            bulletColorIndex = (bulletColorIndex + 1) % neonColors.Length;
-        }
+        bulletColorIndex = (bulletColorIndex + 1) % neonColors.Length;
+    }
 
-        // Notificar red
-        if (NetworkManager.Instance != null && NetworkManager.Instance.currentRoomId != "")
+    [Rpc(SendTo.Server)]
+    private void ShootServerRpc(Vector3 pos, float rot, int colorIdx)
+    {
+        GameObject bullet = Instantiate(bulletPrefab, pos, Quaternion.AngleAxis(rot, Vector3.forward));
+        var bulletNetworkObject = bullet.GetComponent<NetworkObject>();
+        if (bulletNetworkObject != null)
         {
-            NetworkManager.Instance.Emit("SHOOT", new ShootData {
-                roomId = NetworkManager.Instance.currentRoomId,
-                x = transform.position.x,
-                y = transform.position.y,
-                rotation = angle - 90f
-            });
+            bulletNetworkObject.Spawn();
+            ApplyBulletVisualsClientRpc(bulletNetworkObject.NetworkObjectId, colorIdx);
         }
     }
 
-    private void RemoteShoot(string playerId, Vector3 pos, float rot)
+    [Rpc(SendTo.Everyone)]
+    private void ApplyBulletVisualsClientRpc(ulong bulletId, int colorIdx)
     {
-        if (playerId == networkIdentity.networkId)
+        if (Unity.Netcode.NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(bulletId, out NetworkObject bulletObj))
         {
-            Instantiate(bulletPrefab, pos, Quaternion.AngleAxis(rot, Vector3.forward));
+            SpriteRenderer bulletRenderer = bulletObj.GetComponent<SpriteRenderer>();
+            if (bulletRenderer != null)
+            {
+                bulletRenderer.material = new Material(Shader.Find("Custom/SpriteOutline"));
+                Color baseColor = neonColors[colorIdx];
+                bulletRenderer.material.SetColor("_OutlineColor", baseColor * 15f);
+                bulletRenderer.material.SetFloat("_OutlineWidth", 3.0f);
+                bulletRenderer.color = baseColor;
+            }
         }
-    }
-
-    [System.Serializable]
-    public class ShootData
-    {
-        public string roomId;
-        public float x;
-        public float y;
-        public float rotation;
     }
 }

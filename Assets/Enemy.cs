@@ -1,8 +1,10 @@
 using UnityEngine;
+using Unity.Netcode;
 
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(CircleCollider2D))]
-public class Enemy : MonoBehaviour
+[RequireComponent(typeof(NetworkObject))]
+public class Enemy : NetworkBehaviour
 {
     public enum EnemyType { Basic, Interceptor, Stalker }
     public EnemyType type = EnemyType.Basic;
@@ -10,9 +12,9 @@ public class Enemy : MonoBehaviour
     [Header("Movimiento")]
     public float speed = 3f;
     public float turnSpeed = 2f;
-    public float predictionFactor = 0.5f; // Para el Interceptor
-    public float orbitDistance = 10f;     // Para el Stalker
-    public float orbitMargin = 2f;        // Margen de órbita
+    public float predictionFactor = 0.5f; 
+    public float orbitDistance = 10f;     
+    public float orbitMargin = 2f;        
 
     [Header("Combate")]
     public GameObject bulletPrefab;
@@ -23,15 +25,12 @@ public class Enemy : MonoBehaviour
     private Transform player;
     private PlayerMovement playerMovement;
     private Rigidbody2D rb;
-    private NetworkIdentity networkIdentity;
 
     void Awake()
     {
         gameObject.tag = "Enemy";
         rb = GetComponent<Rigidbody2D>();
-        networkIdentity = GetComponent<NetworkIdentity>();
         
-        // Configuración de físicas
         rb.bodyType = RigidbodyType2D.Dynamic;
         rb.gravityScale = 0f;
         rb.linearDamping = 3f;
@@ -43,22 +42,21 @@ public class Enemy : MonoBehaviour
         if (col != null) col.isTrigger = false;
     }
 
-    void Start()
+    public override void OnNetworkSpawn()
     {
-        FindPlayer();
-        transform.position = new Vector3(transform.position.x, transform.position.y, 0f);
-
-        if (player != null)
-            currentDirection = (player.position - transform.position).normalized;
-        else
-            currentDirection = Vector3.right;
-
         InitializeVisuals();
-
-        // Suscribirse a disparos si soy un cliente
-        if (NetworkManager.Instance != null && !NetworkManager.Instance.isHost)
+        
+        if (IsServer)
         {
-            NetworkManager.Instance.OnEnemyShot += RemoteShoot;
+            FindPlayer();
+            if (player != null)
+                currentDirection = (player.position - transform.position).normalized;
+            else
+                currentDirection = Vector3.right;
+        }
+        else
+        {
+            rb.bodyType = RigidbodyType2D.Kinematic;
         }
     }
 
@@ -73,15 +71,15 @@ public class Enemy : MonoBehaviour
         switch (type)
         {
             case EnemyType.Interceptor:
-                renderer.material.SetColor("_OutlineColor", new Color(0.6f * 15f, 0f, 1f * 15f, 1f)); // Púrpura Neon
+                renderer.material.SetColor("_OutlineColor", new Color(9f, 0f, 15f, 1f)); 
                 renderer.color = new Color(0.6f, 0f, 1f, 1f);
                 break;
             case EnemyType.Stalker:
-                renderer.material.SetColor("_OutlineColor", new Color(1.0f * 15f, 0.4f * 15f, 0f, 1f)); // Naranja Neon
+                renderer.material.SetColor("_OutlineColor", new Color(15f, 6f, 0f, 1f));
                 renderer.color = new Color(1.0f, 0.4f, 0f, 1f);
                 break;
             default:
-                renderer.material.SetColor("_OutlineColor", new Color(0.2f * 15f, 1f * 15f, 0.2f * 15f, 1f)); // Verde Neon
+                renderer.material.SetColor("_OutlineColor", new Color(3f, 15f, 3f, 1f));
                 renderer.color = new Color(0.2f, 1f, 0.2f, 1f);
                 break;
         }
@@ -99,6 +97,8 @@ public class Enemy : MonoBehaviour
 
     void FixedUpdate()
     {
+        if (!IsServer) return;
+
         if (player == null)
         {
             FindPlayer();
@@ -106,7 +106,6 @@ public class Enemy : MonoBehaviour
             return;
         }
 
-        // Si el jugador está muerto/oculto, no hacemos nada
         var playerRenderer = player.GetComponent<SpriteRenderer>();
         if (playerRenderer != null && !playerRenderer.enabled)
         {
@@ -116,11 +115,7 @@ public class Enemy : MonoBehaviour
 
         UpdateMovement();
         
-        // Solo el Host o modo Solo gestiona los disparos
-        bool isSolo = NetworkManager.Instance == null || string.IsNullOrEmpty(NetworkManager.Instance.currentRoomId);
-        bool isHost = NetworkManager.Instance != null && NetworkManager.Instance.isHost;
-
-        if (type == EnemyType.Stalker && (isSolo || isHost))
+        if (type == EnemyType.Stalker)
         {
             HandleShooting();
         }
@@ -139,22 +134,11 @@ public class Enemy : MonoBehaviour
         }
         else if (type == EnemyType.Stalker)
         {
-            if (distance > orbitDistance + orbitMargin)
-            {
-                // Demasiado lejos: Acercarse
-                targetDirection = (player.position - transform.position).normalized;
-            }
-            else if (distance < orbitDistance - orbitMargin)
-            {
-                // Demasiado cerca: Alejarse
-                targetDirection = (transform.position - player.position).normalized;
-            }
+            if (distance > orbitDistance + orbitMargin) targetDirection = (player.position - transform.position).normalized;
+            else if (distance < orbitDistance - orbitMargin) targetDirection = (transform.position - player.position).normalized;
             else
             {
-                // En rango: Orbitar (perpendicular)
                 targetDirection = new Vector3(-targetDirection.y, targetDirection.x, 0);
-                
-                // Añadir una pequeña fuerza de acoso hacia el centro para mantener la órbita
                 targetDirection += (player.position - transform.position).normalized * 0.2f;
             }
         }
@@ -166,7 +150,7 @@ public class Enemy : MonoBehaviour
         float speedModifier = Mathf.Max(0.2f, dot);
 
         float finalSpeed = speed;
-        if (GameManager.Instance != null) finalSpeed *= GameManager.Instance.difficultyMultiplier;
+        if (GameManager.Instance != null) finalSpeed *= GameManager.Instance.difficultyMultiplierValue;
 
         if (rb != null) rb.linearVelocity = currentDirection.normalized * (finalSpeed * speedModifier);
     }
@@ -186,45 +170,21 @@ public class Enemy : MonoBehaviour
 
         Vector3 dirToPlayer = (player.position - transform.position).normalized;
         float angle = Mathf.Atan2(dirToPlayer.y, dirToPlayer.x) * Mathf.Rad2Deg - 90f;
-        Quaternion rotation = Quaternion.Euler(0, 0, angle);
-
-        Instantiate(bulletPrefab, transform.position, rotation);
-
-        // Notificar red
-        if (NetworkManager.Instance != null && NetworkManager.Instance.isHost)
-        {
-            NetworkManager.Instance.Emit("ENEMY_SHOOT", new NetworkManager.EnemyShootData {
-                enemyId = networkIdentity != null ? networkIdentity.networkId : "",
-                x = transform.position.x,
-                y = transform.position.y,
-                rotation = angle
-            });
-        }
-    }
-
-    private void RemoteShoot(string id, Vector3 pos, float rotation)
-    {
-        if (networkIdentity != null && networkIdentity.networkId == id)
-        {
-            if (bulletPrefab != null)
-            {
-                Instantiate(bulletPrefab, pos, Quaternion.Euler(0, 0, rotation));
-            }
-        }
-    }
-
-    void Update()
-    {
-        transform.position = new Vector3(transform.position.x, transform.position.y, 0f);
+        
+        GameObject bullet = Instantiate(bulletPrefab, transform.position, Quaternion.Euler(0, 0, angle));
+        var bulletNetObj = bullet.GetComponent<NetworkObject>();
+        if (bulletNetObj != null) bulletNetObj.Spawn();
     }
 
     private void OnCollisionEnter2D(Collision2D collision)
     {
+        if (!IsServer) return;
         CheckPlayerCollision(collision.gameObject);
     }
 
     private void OnTriggerEnter2D(Collider2D collision)
     {
+        if (!IsServer) return;
         CheckPlayerCollision(collision.gameObject);
     }
 
@@ -232,7 +192,6 @@ public class Enemy : MonoBehaviour
     {
         if (other.CompareTag("Player"))
         {
-            Debug.Log("<color=red>¡Muerte por contacto!</color>");
             PlayerMovement pm = other.GetComponent<PlayerMovement>();
             if (pm != null) pm.Die();
         }

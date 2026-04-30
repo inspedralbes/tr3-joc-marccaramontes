@@ -1,6 +1,7 @@
 using UnityEngine;
+using Unity.Netcode;
 
-public class EnemySpawner : MonoBehaviour
+public class EnemySpawner : NetworkBehaviour
 {
     public enum WaveState { Idle, Spawning, WaitingForClear, Rest }
     
@@ -38,41 +39,27 @@ public class EnemySpawner : MonoBehaviour
     private int currentWaveIndex = 0;
     private int enemiesSpawnedInWave = 0;
 
-    void Start()
+    public override void OnNetworkSpawn()
     {
-        if (enemyPrefab == null)
+        if (!IsServer)
         {
-            Debug.LogError("¡ATENCIÓN! No has asignado el 'Enemy Prefab' en el EnemySpawner.");
+            enabled = false;
+            return;
         }
 
         if (spawnCenter == null)
         {
-            try {
-                GameObject platform = GameObject.FindGameObjectWithTag("Platform");
-                if (platform != null) spawnCenter = platform.transform;
-            } catch {
-                Debug.LogWarning("<b>[EnemySpawner]</b> Tag 'Platform' no definido. Usando posición propia.");
-            }
-        }
-
-        // Si somos el cliente, nos suscribimos a los eventos del Host
-        if (NetworkManager.Instance != null && !NetworkManager.Instance.isHost)
-        {
-            NetworkManager.Instance.OnEnemySpawned += RemoteSpawn;
+            GameObject platform = GameObject.FindGameObjectWithTag("Platform");
+            if (platform != null) spawnCenter = platform.transform;
         }
         
-        restTimer = 0f; // Empieza la acción desde el segundo 1
+        restTimer = 0f; 
         currentState = WaveState.Rest;
     }
 
     void Update()
     {
-        // Solo el Host o el modo Solo spawnean enemigos automáticamente
-        bool isMultiplayer = NetworkManager.Instance != null && NetworkManager.Instance.currentRoomId != "";
-        bool isHost = NetworkManager.Instance != null && NetworkManager.Instance.isHost;
-
-        if (isMultiplayer && !isHost) return; 
-
+        if (!IsServer) return;
         if (GameManager.Instance != null && GameManager.Instance.IsGameOver) return;
 
         HandleWaveStates();
@@ -84,16 +71,12 @@ public class EnemySpawner : MonoBehaviour
         {
             case WaveState.Rest:
                 restTimer -= Time.deltaTime;
-                if (restTimer <= 0)
-                {
-                    StartWave();
-                }
+                if (restTimer <= 0) StartWave();
                 break;
 
             case WaveState.Spawning:
                 if (Time.time >= nextSpawnTime)
                 {
-                    // Spawneo por Clústers (grupos de 3 a 5)
                     int clusterSize = Random.Range(3, 6);
                     SpawnCluster(clusterSize);
                     enemiesSpawnedInWave += clusterSize;
@@ -103,13 +86,9 @@ public class EnemySpawner : MonoBehaviour
                     int bonusEnemies = (currentWaveIndex >= waves.Length) ? (currentWaveIndex - waves.Length + 1) * 20 : 0;
                     int totalEnemies = config.enemyCount + bonusEnemies;
 
-                    if (enemiesSpawnedInWave >= totalEnemies)
-                    {
-                        currentState = WaveState.WaitingForClear;
-                    }
+                    if (enemiesSpawnedInWave >= totalEnemies) currentState = WaveState.WaitingForClear;
                     else
                     {
-                        // Pausa entre clústers
                         float currentSpawnRate = Mathf.Max(0.5f, config.spawnRate - (bonusEnemies * 0.01f));
                         nextSpawnTime = Time.time + currentSpawnRate;
                     }
@@ -122,7 +101,6 @@ public class EnemySpawner : MonoBehaviour
                     currentWaveIndex++;
                     restTimer = restDuration;
                     currentState = WaveState.Rest;
-                    Debug.Log($"<color=cyan><b>[WaveSystem]</b> Oleada completada. Próxima en {restDuration}s.</color>");
                 }
                 break;
         }
@@ -136,18 +114,15 @@ public class EnemySpawner : MonoBehaviour
         int waveToUse = Mathf.Min(currentWaveIndex, waves.Length - 1);
         WaveConfig config = waves[waveToUse];
         int bonusEnemies = (currentWaveIndex >= waves.Length) ? (currentWaveIndex - waves.Length + 1) * 20 : 0;
-        int totalEnemies = config.enemyCount + bonusEnemies;
         float currentSpawnRate = Mathf.Max(0.5f, config.spawnRate - (bonusEnemies * 0.01f));
 
         nextSpawnTime = Time.time + currentSpawnRate;
-        Debug.Log($"<color=cyan><b>[WaveSystem]</b> Iniciando Oleada {currentWaveIndex + 1} ({totalEnemies} enemigos).</color>");
     }
 
     void SpawnCluster(int size)
     {
         if (enemyPrefab == null) return;
 
-        // Punto de spawn único para todo el clúster
         float angle = Random.Range(0f, 360f) * Mathf.Deg2Rad;
         float radius = Random.Range(minSpawnRadius, maxSpawnRadius);
         Vector3 spawnPosRel = new Vector3(Mathf.Cos(angle) * radius, Mathf.Sin(angle) * radius, 0f);
@@ -162,13 +137,9 @@ public class EnemySpawner : MonoBehaviour
 
     void SpawnIndividualInCluster(Vector3 origin)
     {
-        string networkId = System.Guid.NewGuid().ToString();
-        // Aumentamos el desplazamiento aleatorio inicial para que nazcan más separados
-        // y el motor de físicas tenga menos trabajo de 'despegue'.
         Vector3 randomOffset = new Vector3(Random.Range(-1.5f, 1.5f), Random.Range(-1.5f, 1.5f), 0f);
         GameObject newEnemy = Instantiate(enemyPrefab, origin + randomOffset, Quaternion.identity);
         
-        // Decidir tipo mediante sistema de pesos
         int waveToUse = Mathf.Min(currentWaveIndex, waves.Length - 1);
         WaveConfig config = waves[waveToUse];
         Enemy enemyScript = newEnemy.GetComponent<Enemy>();
@@ -183,53 +154,19 @@ public class EnemySpawner : MonoBehaviour
             {
                 enemyScript.type = Enemy.EnemyType.Stalker;
                 enemyScript.bulletPrefab = stalkerBulletPrefab;
-                enemyScript.InitializeVisuals(); // Forzar actualización visual
             }
             else if (roll < currentStalkerChance + currentInterceptorChance)
             {
                 enemyScript.type = Enemy.EnemyType.Interceptor;
-                enemyScript.InitializeVisuals(); // Forzar actualización visual
             }
             else
             {
                 enemyScript.type = Enemy.EnemyType.Basic;
-                enemyScript.InitializeVisuals(); // Forzar actualización visual
             }
         }
 
-        newEnemy.GetComponent<NetworkIdentity>()?.Setup(networkId, false, true);
-
-        // Notificar al resto
-        if (NetworkManager.Instance != null && NetworkManager.Instance.isHost)
-        {
-            NetworkManager.Instance.Emit("SPAWN_ENEMY", new EnemySpawnData {
-                roomId = NetworkManager.Instance.currentRoomId,
-                enemyId = networkId,
-                x = origin.x + randomOffset.x,
-                y = origin.y + randomOffset.y,
-                type = (int)(enemyScript != null ? enemyScript.type : Enemy.EnemyType.Basic)
-            });
-        }
-    }
-
-    private void RemoteSpawn(string id, Vector3 position, int type)
-    {
-        GameObject newEnemy = Instantiate(enemyPrefab, position, Quaternion.identity);
-        Enemy enemyScript = newEnemy.GetComponent<Enemy>();
-        if (enemyScript != null)
-        {
-            enemyScript.type = (Enemy.EnemyType)type;
-        }
-        newEnemy.GetComponent<NetworkIdentity>()?.Setup(id, false, false);
-    }
-
-    [System.Serializable]
-    public class EnemySpawnData
-    {
-        public string roomId;
-        public string enemyId;
-        public float x;
-        public float y;
-        public int type;
+        // Sincronizar vía NGO
+        var netObj = newEnemy.GetComponent<NetworkObject>();
+        if (netObj != null) netObj.Spawn();
     }
 }

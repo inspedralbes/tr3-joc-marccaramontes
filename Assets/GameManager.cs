@@ -3,21 +3,23 @@ using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using TMPro; 
 using System.Collections;
+using Unity.Netcode;
+using AEA.Networking;
 
-public class GameManager : MonoBehaviour
+public class GameManager : NetworkBehaviour
 {
-    private float survivalTime;
+    private NetworkVariable<float> survivalTime = new NetworkVariable<float>(0f);
+    private NetworkVariable<float> difficultyMultiplier = new NetworkVariable<float>(1.0f);
+    
     private bool isGameOver;
     public bool IsGameOver => isGameOver;
-    private bool matchEndedForLocal; // Detener timer localmente
+    private bool matchEndedForLocal;
 
     [Header("Estado de Juego")]
     public GameMode currentMode = GameMode.Solo;
     public TurnState currentTurn = TurnState.Player1;
     public GameState currentState = GameState.Menu;
-    public float difficultyMultiplier = 1.0f;
 
-    [Header("Resultados")]
     public float p1Time;
     public float p2Time;
     public int currentKills;
@@ -29,16 +31,18 @@ public class GameManager : MonoBehaviour
     public GameObject deathFlashOverlay; 
     
     public TextMeshProUGUI p1TimeText;
-    public TextMeshProUGUI p2TimeText; // Referencia para el rival
+    public TextMeshProUGUI p2TimeText; 
     public TextMeshProUGUI titleText;
     public TextMeshProUGUI winnerText;
     public TextMeshProUGUI killsText;
     public TextMeshProUGUI timerHUDText; 
-    public TextMeshProUGUI rivalTimerHUDText; // Nuevo: Tiempo del rival en HUD
+    public TextMeshProUGUI rivalTimerHUDText; 
     public CanvasGroup hudGroup;         
     public TextMeshProUGUI killsHUDText; 
     public Button retryButton;          
     public Button menuButton;            
+
+    public float difficultyMultiplierValue => difficultyMultiplier.Value;
 
     public static GameManager Instance; 
 
@@ -53,6 +57,15 @@ public class GameManager : MonoBehaviour
         else
         {
             Destroy(gameObject); 
+        }
+    }
+
+    public override void OnNetworkSpawn()
+    {
+        if (IsServer)
+        {
+            survivalTime.Value = 0f;
+            difficultyMultiplier.Value = 1.0f;
         }
     }
 
@@ -79,9 +92,6 @@ public class GameManager : MonoBehaviour
         currentState = GameState.DeathTransition;
         Time.timeScale = 0f; 
         
-        Debug.Log("<color=red><b>[GameManager]</b> Secuencia de muerte iniciada.</color>");
-
-        // OCULTAR HUD
         if (hudGroup != null && UIAnimationManager.Instance != null)
         {
             StartCoroutine(UIAnimationManager.Instance.FadeCanvasGroup(hudGroup, 1f, 0f, 0.2f));
@@ -114,24 +124,21 @@ public class GameManager : MonoBehaviour
             currentState = GameState.Playing;
             currentMode = GameMode.Solo;
         }
-
-        if (NetworkManager.Instance != null)
-        {
-            NetworkManager.Instance.OnMatchStarted += HandleOnlineStart;
-            NetworkManager.Instance.OnGameOver += HandleOnlineGameOver;
-        }
     }
 
     void Update()
     {
+        if (IsServer && currentState == GameState.Playing && !isGameOver)
+        {
+            survivalTime.Value += Time.unscaledDeltaTime; 
+            difficultyMultiplier.Value += Time.unscaledDeltaTime * 0.01f;
+        }
+
         if (currentState == GameState.Playing && !isGameOver && !matchEndedForLocal)
         {
-            survivalTime += Time.unscaledDeltaTime; 
-            difficultyMultiplier += Time.unscaledDeltaTime * 0.01f; // Aumento gradual (1% por segundo)
-            
             if (timerHUDText != null) 
             {
-                timerHUDText.text = survivalTime.ToString("F2") + "s";
+                timerHUDText.text = survivalTime.Value.ToString("F2") + "s";
                 timerHUDText.color = Color.white;
             }
 
@@ -149,21 +156,10 @@ public class GameManager : MonoBehaviour
 
         currentTurn = TurnState.Player1;
         currentState = GameState.Playing; 
-        p1Time = p2Time = survivalTime = 0;
+        p1Time = p2Time = 0;
         isGameOver = false;
         
         ResetSession();
-        SceneManager.LoadScene("SampleScene");
-    }
-
-    private void HandleOnlineStart()
-    {
-        currentMode = GameMode.Online;
-        currentState = GameState.Playing;
-        p1Time = p2Time = survivalTime = 0;
-        isGameOver = false;
-        Time.timeScale = 1.0f; // Asegurar que el juego no esté pausado
-        playerDeathTimes.Clear();
         SceneManager.LoadScene("SampleScene");
     }
 
@@ -173,64 +169,65 @@ public class GameManager : MonoBehaviour
         
         if (currentMode == GameMode.Online)
         {
-            // En modo Online, mi muerte no termina la partida globalmente
             matchEndedForLocal = true;
-            p1Time = survivalTime;
-            playerDeathTimes[NetworkManager.Instance.localPlayerId] = survivalTime;
+            p1Time = survivalTime.Value;
+            
+            // Notificar muerte a través de RPC (Nuevo formato Unity 6)
+            NotifyDeathServerRpc(Unity.Netcode.NetworkManager.Singleton.LocalClientId, p1Time);
 
             if (timerHUDText != null) 
             {
                 timerHUDText.text = "ESPERANDO AL RIVAL...";
                 timerHUDText.color = new Color(1, 1, 1, 0.5f);
             }
-
-            // Notificar al servidor y a otros
-            NetworkManager.Instance.ReportResults(survivalTime);
-            NetworkManager.Instance.Emit("player_death", new DeathData { 
-                roomId = NetworkManager.Instance.currentRoomId, 
-                survivalTime = survivalTime 
-            });
-
-            // Si soy el último en morir, disparar fin de partida
-            CheckAllPlayersDead();
         }
         else 
         {
             isGameOver = true;
-            p1Time = survivalTime;
+            p1Time = survivalTime.Value;
             StartCoroutine(DeathSequenceCoroutine());
         }
     }
 
-    public void RecordRivalDeath(string playerId, float time)
+    [Rpc(SendTo.Server)]
+    private void NotifyDeathServerRpc(ulong clientId, float time)
     {
-        if (!playerDeathTimes.ContainsKey(playerId))
-        {
-            playerDeathTimes[playerId] = time;
-            p2Time = time; // Para simplificar 1vs1
-            
-            if (timerHUDText != null) 
-                timerHUDText.text = "¡RIVAL HA CAÍDO!";
+        NotifyDeathClientRpc(clientId, time);
+    }
 
+    [Rpc(SendTo.Everyone)]
+    private void NotifyDeathClientRpc(ulong clientId, float time)
+    {
+        string idStr = clientId.ToString();
+        if (!playerDeathTimes.ContainsKey(idStr))
+        {
+            playerDeathTimes[idStr] = time;
+            if (clientId != Unity.Netcode.NetworkManager.Singleton.LocalClientId)
+            {
+                p2Time = time;
+                if (timerHUDText != null) timerHUDText.text = "¡RIVAL HA CAÍDO!";
+            }
             CheckAllPlayersDead();
         }
     }
 
     private void CheckAllPlayersDead()
     {
-        // En modo 1vs1 esperamos a tener tantos tiempos registrados como jugadores haya en la sala
-        int targetCount = (NetworkManager.Instance != null) ? NetworkManager.Instance.playerCount : 1;
+        int targetCount = (Unity.Netcode.NetworkManager.Singleton != null) ? Unity.Netcode.NetworkManager.Singleton.ConnectedClients.Count : 1;
 
         if (currentMode == GameMode.Online)
         {
             if (playerDeathTimes.Count >= targetCount)
             {
                 isGameOver = true;
+                
+                // Si soy el host, reportar resultados finales a la API
+                if (IsServer && AEA.Networking.NetworkManager.Instance != null)
+                {
+                    AEA.Networking.NetworkManager.Instance.ReportResults(p1Time); 
+                }
+
                 StartCoroutine(DeathSequenceCoroutine());
-            }
-            else
-            {
-                Debug.Log($"[GameManager] Esperando a que el resto de jugadores mueran... ({playerDeathTimes.Count}/{targetCount})");
             }
         }
         else
@@ -238,11 +235,6 @@ public class GameManager : MonoBehaviour
             isGameOver = true;
             StartCoroutine(DeathSequenceCoroutine());
         }
-    }
-
-    private void HandleOnlineGameOver(string playerId, float time)
-    {
-        RecordRivalDeath(playerId, time);
     }
 
     public void RegisterResultsUI(ResultsUIRegisterer ui)
@@ -254,7 +246,7 @@ public class GameManager : MonoBehaviour
         deathFlashOverlay = ui.deathFlashOverlay;
         
         p1TimeText = ui.p1TimeText;
-        p2TimeText = ui.p2TimeText; // Nuevo: Rival
+        p2TimeText = ui.p2TimeText; 
         titleText = ui.titleText;
         winnerText = ui.winnerText;
         killsText = ui.killsText;
@@ -268,93 +260,27 @@ public class GameManager : MonoBehaviour
         {
             retryButton.onClick.RemoveAllListeners();
             retryButton.onClick.AddListener(RetryGame);
-            AddHoverEffect(retryButton.gameObject);
         }
         if (menuButton != null) 
         {
             menuButton.onClick.RemoveAllListeners();
             menuButton.onClick.AddListener(ReturnToMenu);
-            AddHoverEffect(menuButton.gameObject);
         }
-        Debug.Log("<b>[GameManager]</b> UI de resultados registrada correctamente.");
-    }
-
-    private void AddHoverEffect(GameObject go)
-    {
-        if (go.GetComponent<ButtonHoverEffect>() == null) go.AddComponent<ButtonHoverEffect>();
     }
 
     private void ShowResults()
     {
-        Debug.Log("<b>[GameManager]</b> Intentando mostrar resultados...");
-        
-        if (resultsPanel == null)
-        {
-            Debug.LogWarning("<b>[GameManager]</b> Panel ausente. Iniciando búsqueda de emergencia...");
-            FindResultsPanelExhaustive();
-        }
-
         if (resultsPanel != null)
         {
-            // ASEGURAR QUE EL CANVAS PADRE ESTÉ ACTIVO Y VISIBLE
             Canvas parentCanvas = resultsPanel.GetComponentInParent<Canvas>(true);
-            if (parentCanvas != null) 
-            {
-                parentCanvas.gameObject.SetActive(true);
-                parentCanvas.gameObject.transform.localScale = Vector3.one;
-            }
-            resultsPanel.transform.localScale = Vector3.one;
-
+            if (parentCanvas != null) parentCanvas.gameObject.SetActive(true);
+            resultsPanel.SetActive(true);
             StartCoroutine(ShowResultsSequence());
-        }
-        else
-        {
-            Debug.LogError("<b>[GameManager]</b> ERROR CRÍTICO: No existe el objeto 'PanelResultados' en la escena.");
-        }
-    }
-
-    private void FindResultsPanelExhaustive()
-    {
-        var allObjects = Resources.FindObjectsOfTypeAll<GameObject>();
-        foreach (var go in allObjects)
-        {
-            if (go.name == "PanelResultados")
-            {
-                resultsPanel = go;
-                resultsPanel.transform.localScale = Vector3.one; 
-                resultsCanvasGroup = go.GetComponent<CanvasGroup>() ?? go.AddComponent<CanvasGroup>();
-                
-                // Re-vincular componentes hijos por nombre
-                p1TimeText = go.transform.Find("P1TimeText")?.GetComponent<TextMeshProUGUI>();
-                p2TimeText = go.transform.Find("P2TimeText")?.GetComponent<TextMeshProUGUI>();
-                titleText = go.transform.Find("TitleText")?.GetComponent<TextMeshProUGUI>();
-                winnerText = go.transform.Find("WinnerText")?.GetComponent<TextMeshProUGUI>();
-                killsText = go.transform.Find("KillsText")?.GetComponent<TextMeshProUGUI>();
-                
-                retryButton = go.transform.Find("RetryButton")?.GetComponent<Button>();
-                menuButton = go.transform.Find("MenuButton")?.GetComponent<Button>();
-
-                if (retryButton != null) {
-                    retryButton.onClick.RemoveAllListeners();
-                    retryButton.onClick.AddListener(RetryGame);
-                    AddHoverEffect(retryButton.gameObject);
-                }
-                if (menuButton != null) {
-                    menuButton.onClick.RemoveAllListeners();
-                    menuButton.onClick.AddListener(ReturnToMenu);
-                    AddHoverEffect(menuButton.gameObject);
-                }
-                Debug.Log("<b>[GameManager]</b> UI auto-sanada con éxito.");
-                return;
-            }
         }
     }
 
     private IEnumerator ShowResultsSequence()
     {
-        resultsPanel.SetActive(true);
-        
-        // Determinar ganador si es Online
         if (currentMode == GameMode.Online)
         {
             bool victory = p1Time >= p2Time;
@@ -383,25 +309,8 @@ public class GameManager : MonoBehaviour
         }
         if (killsText != null) killsText.text = $"Bajas: {currentKills}";
         
-        Debug.Log("<b>[GameManager]</b> PanelResultados activado.");
-
-        if (UIAnimationManager.Instance == null)
-        {
-            if (resultsCanvasGroup != null) resultsCanvasGroup.alpha = 1f;
-        }
-        else
-        {
-            if (resultsCanvasGroup != null) 
-                yield return UIAnimationManager.Instance.FadeCanvasGroup(resultsCanvasGroup, 0f, 1f, 0.5f);
-        }
-
-        // Animaciones
-        if (UIAnimationManager.Instance != null)
-        {
-            if (p1TimeText != null) StartCoroutine(UIAnimationManager.Instance.PulseScale(p1TimeText.transform, 1.1f, 0.5f));
-            if (p2TimeText != null && currentMode == GameMode.Online) StartCoroutine(UIAnimationManager.Instance.PulseScale(p2TimeText.transform, 1.1f, 0.5f));
-            yield return new WaitForSecondsRealtime(0.5f);
-        }
+        if (resultsCanvasGroup != null) resultsCanvasGroup.alpha = 1f;
+        yield return null;
     }
 
     public void AddKill() 
@@ -416,38 +325,21 @@ public class GameManager : MonoBehaviour
     private void ResetSession()
     {
         StopAllCoroutines();
-        survivalTime = 0;
-        currentKills = 0;
-        difficultyMultiplier = 1.0f;
         isGameOver = false;
         Time.timeScale = 1.0f;
         if (resultsPanel != null) resultsPanel.SetActive(false);
         if (hudGroup != null) hudGroup.alpha = 1f;
+        matchEndedForLocal = false;
+        playerDeathTimes.Clear();
+        currentKills = 0;
     }
 
     public void RetryGame() { StartGame(currentMode); }
 
     public void ReturnToMenu() 
     { 
-        StartCoroutine(ReturnToMenuRoutine());
-    }
-
-    private IEnumerator ReturnToMenuRoutine()
-    {
-        Debug.Log("<b>[GameManager]</b> Regresando al menú...");
-        
-        if (NetworkManager.Instance != null)
-        {
-            NetworkManager.Instance.LeaveRoom();
-        }
-
-        // Un pequeño respiro para asegurar el envío del paquete (opcional pero recomendado)
-        yield return new WaitForSecondsRealtime(0.1f);
-        
+        if (AEA.Networking.NetworkManager.Instance != null) AEA.Networking.NetworkManager.Instance.LeaveRoom();
         Time.timeScale = 1.0f;
         SceneManager.LoadScene("Menu"); 
     }
-
-    [System.Serializable]
-    public class DeathData { public string roomId; public string playerId; public float survivalTime; }
 }

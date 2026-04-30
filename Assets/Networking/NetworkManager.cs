@@ -1,271 +1,145 @@
 using System;
 using System.Collections;
 using System.Text;
+using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Networking;
-using Networking;
+using Unity.Netcode;
+using Unity.Netcode.Transports.UTP;
+using Unity.Services.Core;
+using Unity.Services.Authentication;
+using Unity.Services.Relay;
+using Unity.Services.Relay.Models;
 
-public class NetworkManager : MonoBehaviour
+namespace AEA.Networking
 {
-    public static NetworkManager Instance { get; private set; }
-
-    [Header("Configuración")]
-    public string serverWsUrl = "ws://localhost:3000/ws";
-    public string serverHttpUrl = "http://localhost:3000/api";
-    public string serverHost = "localhost";
-    
-    [Header("Estado")]
-    public string currentRoomId;
-    public bool isHost;
-    public string localPlayerId;
-    public string localPlayerName;
-    public int playerCount = 1;
-
-    private NativeWebSocketClient client;
-
-    private void Awake()
+    public class NetworkManager : MonoBehaviour
     {
-        if (Instance == null)
-        {
-            Instance = this;
-            DontDestroyOnLoad(gameObject);
-            client = gameObject.AddComponent<NativeWebSocketClient>();
-            
-            // Cargar dirección guardada
-            string savedHost = PlayerPrefs.GetString("ServerAddress", "localhost");
-            UpdateServerAddress(savedHost);
-        }
-        else
-        {
-            Destroy(gameObject);
-        }
-    }
+        public static NetworkManager Instance { get; private set; }
 
-    public void UpdateServerAddress(string host)
-    {
-        if (string.IsNullOrEmpty(host)) host = "localhost";
-        serverHost = host;
-        serverHttpUrl = $"http://{host}:3000/api";
-        serverWsUrl = $"ws://{host}:3000/ws";
-        Debug.Log($"[NetworkManager] Server address updated to: {host}");
-    }
-
-    private void Start()
-    {
-        client.OnConnected += HandleConnected;
-        client.OnDisconnected += HandleDisconnected;
-        client.OnMessageReceived += HandleMessage;
-    }
-
-    // --- Comunicación HTTP (UnityWebRequest) ---
-
-    public void PostRequest<T>(string endpoint, object data, Action<T> onSuccess, Action<string> onError)
-    {
-        StartCoroutine(PostRequestRoutine(endpoint, data, onSuccess, onError));
-    }
-
-    private IEnumerator PostRequestRoutine<T>(string endpoint, object data, Action<T> onSuccess, Action<string> onError)
-    {
-        string json = JsonUtility.ToJson(data);
-        string url = $"{serverHttpUrl}{endpoint}";
+        [Header("Configuración Legacy (HTTP)")]
+        public string serverHttpUrl = "http://localhost:3001/api";
+        public string serverHost = "localhost";
         
-        using (UnityWebRequest request = new UnityWebRequest(url, "POST"))
+        [Header("Estado")]
+        public string currentRoomId;
+        public bool isHost => Unity.Netcode.NetworkManager.Singleton != null && Unity.Netcode.NetworkManager.Singleton.IsServer;
+        public string localPlayerId;
+        public string localPlayerName;
+        public int playerCount => Unity.Netcode.NetworkManager.Singleton != null ? Unity.Netcode.NetworkManager.Singleton.ConnectedClients.Count : 1;
+
+        // Eventos mantenidos para compatibilidad
+        public event Action<string, Vector3, float> OnRemotePlayerMoved;
+        public event Action<string, string> OnRemotePlayerJoined;
+        public event Action<string[]> OnLobbyPlayersUpdated;
+        public event Action<string> OnRemotePlayerLeft;
+        public event Action<string, Vector3, float> OnRemotePlayerShot;
+        public event Action OnMatchStarted;
+        public event Action<string, float> OnGameOver;
+        public event Action<string, Vector3, int> OnEnemySpawned;
+        public event Action<string, Vector3> OnEnemySynced;
+        public event Action<string, Vector3, float> OnEnemyShot;
+
+        private async void Awake()
         {
-            byte[] bodyRaw = Encoding.UTF8.GetBytes(json);
-            request.uploadHandler = new UploadHandlerRaw(bodyRaw);
-            request.downloadHandler = new DownloadHandlerBuffer();
-            request.SetRequestHeader("Content-Type", "application/json");
-
-            yield return request.SendWebRequest();
-
-            if (request.result != UnityWebRequest.Result.Success)
+            if (Instance == null)
             {
-                Debug.LogError($"[NetworkManager] Error en POST {endpoint}: {request.error} (Code: {request.responseCode})");
+                Instance = this;
+                DontDestroyOnLoad(gameObject);
                 
-                string errorMessage = request.error;
                 try {
-                    // Intentar extraer mensaje de error del JSON si existe
-                    var errorData = JsonUtility.FromJson<ErrorResponse>(request.downloadHandler.text);
-                    if (!string.IsNullOrEmpty(errorData.message)) {
-                        errorMessage = errorData.message;
+                    await UnityServices.InitializeAsync();
+                    if (!AuthenticationService.Instance.IsSignedIn)
+                    {
+                        await AuthenticationService.Instance.SignInAnonymouslyAsync();
                     }
-                } catch {}
-
-                onError?.Invoke(errorMessage);
-            }
-            else
-            {
-                Debug.Log($"[NetworkManager] POST {endpoint} exitoso: {request.downloadHandler.text}");
-                try {
-                    T response = JsonUtility.FromJson<T>(request.downloadHandler.text);
-                    onSuccess?.Invoke(response);
                 } catch (Exception e) {
-                    Debug.LogError($"[NetworkManager] Error parseando respuesta: {e.Message}");
-                    onError?.Invoke("Error de parseo de datos");
+                    Debug.LogError($"[NetworkManager] Error UGS: {e.Message}");
                 }
+
+                UpdateServerAddress(PlayerPrefs.GetString("ServerAddress", "localhost"));
+            }
+            else Destroy(gameObject);
+        }
+
+        public void UpdateServerAddress(string host)
+        {
+            if (string.IsNullOrEmpty(host)) host = "localhost";
+            serverHost = host;
+            serverHttpUrl = $"http://{host}:3001/api";
+        }
+
+        public void PostRequest<T>(string endpoint, object data, Action<T> onSuccess, Action<string> onError)
+        {
+            StartCoroutine(PostRequestRoutine(endpoint, data, onSuccess, onError));
+        }
+
+        private IEnumerator PostRequestRoutine<T>(string endpoint, object data, Action<T> onSuccess, Action<string> onError)
+        {
+            string json = JsonUtility.ToJson(data);
+            string url = $"{serverHttpUrl}{endpoint}";
+            using (UnityWebRequest request = new UnityWebRequest(url, "POST"))
+            {
+                byte[] bodyRaw = Encoding.UTF8.GetBytes(json);
+                request.uploadHandler = new UploadHandlerRaw(bodyRaw);
+                request.downloadHandler = new DownloadHandlerBuffer();
+                request.SetRequestHeader("Content-Type", "application/json");
+                yield return request.SendWebRequest();
+
+                if (request.result == UnityWebRequest.Result.Success)
+                {
+                    try {
+                        T response = JsonUtility.FromJson<T>(request.downloadHandler.text);
+                        onSuccess?.Invoke(response);
+                    } catch { onError?.Invoke("Parse error"); }
+                } else onError?.Invoke(request.error);
             }
         }
-    }
 
-    // --- Flujo de Conexión ---
-
-    public void ConnectToSocket(string roomId)
-    {
-        currentRoomId = roomId;
-        if (!client.IsConnected)
+        public async Task<string> CreateRelayRoom(int maxPlayers = 2)
         {
-            client.Connect(serverWsUrl);
-        }
-        else
-        {
-            EmitJoinSocket();
-        }
-    }
-
-    private void HandleConnected()
-    {
-        Debug.Log("[NetworkManager] WS Connected. Joining room...");
-        EmitJoinSocket();
-    }
-
-    private void EmitJoinSocket()
-    {
-        var data = new JoinSocketData { 
-            roomId = currentRoomId, 
-            playerName = localPlayerName 
-        };
-        client.Send("JOIN_ROOM", data);
-    }
-
-    public void Emit(string type, object data)
-    {
-        client.Send(type, data);
-    }
-
-    public void ReportResults(float survivalTime)
-    {
-        var request = new ResultRequest {
-            roomId = currentRoomId,
-            playerName = localPlayerName,
-            survivalTime = survivalTime
-        };
-
-        PostRequest<RoomResponse>("/results", request, 
-            (response) => Debug.Log("Resultados enviados con éxito via HTTP"),
-            (error) => Debug.LogError("Error enviando resultados: " + error)
-        );
-    }
-
-    private void HandleDisconnected()
-    {
-        Debug.LogWarning("[NetworkManager] WS Disconnected.");
-    }
-
-    // --- Eventos de Juego ---
-
-    public event Action<string, Vector3, float> OnRemotePlayerMoved;
-    public event Action<string, string> OnRemotePlayerJoined;
-    public event Action<string[]> OnLobbyPlayersUpdated;
-    public event Action<string> OnRemotePlayerLeft;
-    public event Action<string, Vector3, float> OnRemotePlayerShot;
-    public event Action OnMatchStarted;
-    public event Action<string, float> OnGameOver;
-    public event Action<string, Vector3, int> OnEnemySpawned;
-    public event Action<string, Vector3> OnEnemySynced;
-    public event Action<string, Vector3, float> OnEnemyShot;
-
-    private void HandleMessage(string type, string playerId, string payload)
-    {
-        Debug.Log($"[NetworkManager] Message received: {type} from {playerId}");
-        
-        switch (type)
-        {
-            case "ROOM_JOINED_CONFIRMED":
-                var confirmedData = JsonUtility.FromJson<RoomConfirmedData>(payload);
-                isHost = confirmedData.isHost;
-                if (confirmedData.players != null)
-                {
-                    playerCount = confirmedData.players.Length;
-                    OnLobbyPlayersUpdated?.Invoke(confirmedData.players);
-                }
-                break;
-            case "PLAYER_JOINED":
-                var joinData = JsonUtility.FromJson<JoinData>(payload);
-                string idJ = string.IsNullOrEmpty(playerId) ? joinData.playerId : playerId;
-                OnRemotePlayerJoined?.Invoke(idJ, joinData.playerName);
-                if (joinData.players != null)
-                {
-                    playerCount = joinData.players.Length;
-                    OnLobbyPlayersUpdated?.Invoke(joinData.players);
-                }
-                break;
-            case "PLAYER_LEFT":
-                var leftData = JsonUtility.FromJson<JoinData>(payload);
-                string idL = string.IsNullOrEmpty(playerId) ? leftData.playerId : playerId;
-                playerCount = Mathf.Max(1, playerCount - 1);
-                OnRemotePlayerLeft?.Invoke(idL);
-                break;
-            case "MOVE":
-                var moveData = JsonUtility.FromJson<MoveData>(payload);
-                OnRemotePlayerMoved?.Invoke(playerId, new Vector3(moveData.x, moveData.y, 0), moveData.rotation);
-                break;
-            case "SPAWN_ENEMY":
-                var enemyData = JsonUtility.FromJson<EnemyNetData>(payload);
-                OnEnemySpawned?.Invoke(enemyData.enemyId, new Vector3(enemyData.x, enemyData.y, 0), enemyData.type);
-                break;
-            case "ENEMY_SYNC":
-                var syncData = JsonUtility.FromJson<EnemySyncData>(payload);
-                OnEnemySynced?.Invoke(syncData.enemyId, new Vector3(syncData.x, syncData.y, 0));
-                break;
-            case "ENEMY_SHOOT":
-                var enemyShootData = JsonUtility.FromJson<EnemyShootData>(payload);
-                OnEnemyShot?.Invoke(enemyShootData.enemyId, new Vector3(enemyShootData.x, enemyShootData.y, 0), enemyShootData.rotation);
-                break;
-            case "SHOOT":
-                var shootData = JsonUtility.FromJson<ShootNetData>(payload);
-                OnRemotePlayerShot?.Invoke(playerId, new Vector3(shootData.x, shootData.y, 0), shootData.rotation);
-                break;
-            case "START_MATCH":
+            try {
+                Allocation allocation = await RelayService.Instance.CreateAllocationAsync(maxPlayers);
+                string joinCode = await RelayService.Instance.GetJoinCodeAsync(allocation.AllocationId);
+                var transport = Unity.Netcode.NetworkManager.Singleton.GetComponent<UnityTransport>();
+                transport.SetRelayServerData(allocation.RelayServer.IpV4, (ushort)allocation.RelayServer.Port, allocation.AllocationIdBytes, allocation.Key, allocation.ConnectionData);
+                Unity.Netcode.NetworkManager.Singleton.StartHost();
+                currentRoomId = joinCode;
                 OnMatchStarted?.Invoke();
-                break;
-            case "PLAYER_DEATH":
-            case "DEATH":
-                var gameOverData = JsonUtility.FromJson<GameOverData>(payload);
-                string idD = string.IsNullOrEmpty(playerId) ? gameOverData.playerId : playerId;
-                if (GameManager.Instance != null)
-                    GameManager.Instance.RecordRivalDeath(idD, gameOverData.survivalTime);
-                OnGameOver?.Invoke(idD, gameOverData.survivalTime);
-                break;
+                return joinCode;
+            } catch (Exception e) { Debug.LogError($"Relay Create Error: {e.Message}"); return null; }
         }
+
+        public async Task<bool> JoinRelayRoom(string joinCode)
+        {
+            try {
+                JoinAllocation allocation = await RelayService.Instance.JoinAllocationAsync(joinCode);
+                var transport = Unity.Netcode.NetworkManager.Singleton.GetComponent<UnityTransport>();
+                transport.SetRelayServerData(allocation.RelayServer.IpV4, (ushort)allocation.RelayServer.Port, allocation.AllocationIdBytes, allocation.Key, allocation.ConnectionData, allocation.HostConnectionData);
+                Unity.Netcode.NetworkManager.Singleton.StartClient();
+                currentRoomId = joinCode;
+                return true;
+            } catch (Exception e) { Debug.LogError($"Relay Join Error: {e.Message}"); return false; }
+        }
+
+        public void ReportResults(float survivalTime)
+        {
+            var request = new ResultRequest { roomId = currentRoomId, playerName = localPlayerName, survivalTime = survivalTime };
+            PostRequest<RoomResponse>("/results", request, (r) => {}, (e) => {});
+        }
+
+        public void LeaveRoom()
+        {
+            if (Unity.Netcode.NetworkManager.Singleton != null) Unity.Netcode.NetworkManager.Singleton.Shutdown();
+            currentRoomId = "";
+        }
+
+        public void Emit(string type, object data) => Debug.Log($"[NetworkManager] Emit {type} redirected to NGO");
+
+        [Serializable] public class RoomRequest { public string playerName; }
+        [Serializable] public class JoinRequest { public string roomId; public string playerName; }
+        [Serializable] public class RoomResponse { public string roomId; public bool success; }
+        [Serializable] public class ResultRequest { public string roomId; public string playerName; public float survivalTime; }
+        [Serializable] public class EnemySyncData { public string enemyId; public float x; public float y; }
     }
-
-    public void LeaveRoom()
-    {
-        if (string.IsNullOrEmpty(currentRoomId)) return;
-        
-        Debug.Log($"[NetworkManager] Leaving room {currentRoomId}...");
-        client.Send("LEAVE_ROOM", new LeaveData { roomId = currentRoomId });
-        currentRoomId = "";
-        isHost = false;
-    }
-
-    // --- DTOs ---
-
-    [Serializable] public class RoomRequest { public string playerName; }
-    [Serializable] public class JoinRequest { public string roomId; public string playerName; }
-    [Serializable] public class RoomResponse { public string roomId; public bool success; }
-    [Serializable] public class ResultRequest { public string roomId; public string playerName; public float survivalTime; }
-    [Serializable] public class StartMatchData { public string roomId; }
-
-    [Serializable] public class LeaveData { public string roomId; }
-    [Serializable] public class JoinSocketData { public string roomId; public string playerName; }
-    [Serializable] public class RoomConfirmedData { public string roomId; public bool isHost; public string[] players; }
-    [Serializable] public class JoinData { public string playerId; public string playerName; public string[] players; }
-    [Serializable] public class ShootNetData { public string playerId; public float x; public float y; public float rotation; }
-    [Serializable] public class EnemyShootData { public string enemyId; public float x; public float y; public float rotation; }
-    [Serializable] public class GameOverData { public string playerId; public float survivalTime; }
-    [Serializable] public class EnemyNetData { public string enemyId; public float x; public float y; public int type; }
-    [Serializable] public class EnemySyncData { public string enemyId; public float x; public float y; }
-    [Serializable] public class MoveData { public float x; public float y; public float rotation; }
-    [Serializable] public class ErrorResponse { public string error; public string message; public int code; }
-    }
+}

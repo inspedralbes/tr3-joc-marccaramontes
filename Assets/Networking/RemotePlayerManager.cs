@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using AEA.Networking;
 
 public class RemotePlayerManager : MonoBehaviour
 {
@@ -45,8 +46,9 @@ public class RemotePlayerManager : MonoBehaviour
 
         GameObject ghostGo = Instantiate(playerPrefab, Vector3.zero, Quaternion.identity);
         
-        // Configurar identidad como remota
-        NetworkIdentity id = ghostGo.GetComponent<NetworkIdentity>();
+        // Configurar identidad como remota (Legacy - NGO gestiona esto ahora)
+        // Pero lo mantenemos para no romper el script si aún se usa el prefab viejo
+        var id = ghostGo.GetComponent<NetworkIdentity>();
         if (id != null)
         {
             id.Setup(playerId, false, false);

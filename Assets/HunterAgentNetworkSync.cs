@@ -1,5 +1,5 @@
 using UnityEngine;
-using Networking;
+using AEA.Networking;
 
 public class HunterAgentNetworkSync : MonoBehaviour
 {
@@ -33,7 +33,7 @@ public class HunterAgentNetworkSync : MonoBehaviour
             if (agent != null) agent.enabled = false;
             if (rb != null) rb.bodyType = RigidbodyType2D.Kinematic;
             
-            // Suscribirse a actualizaciones de red semánticas
+            // Suscribirse a actualizaciones de red semánticas (Legacy/Compatibilidad)
             net.OnEnemySynced += HandleRemoteSync;
         }
     }
@@ -59,7 +59,7 @@ public class HunterAgentNetworkSync : MonoBehaviour
 
     private void SyncPosition()
     {
-        // Requisito 3.1: Usar el nuevo DTO y evento semántico
+        // Usar el DTO dentro del nuevo namespace
         var data = new NetworkManager.EnemySyncData
         {
             enemyId = "HUNTER_AGENT",
